@@ -11,100 +11,115 @@ if(!file.exists('SRAmetadb.sqlite'))
 sra_con<- dbConnect(dbDriver("SQLite"), sra_dbname) 
 source('~/sra_toolkit/bin/fastqDump_v1.R')
 
-#initialize columns 
-
-  colSettings = list(list(),list(),list(),list(),list())
-  names(colSettings) = c("study", "run", "sample", "submission", "experiment")
-  print(paste("Column Settings: at begining",colSettings))
-
-#Start ShinyServer Function
+#Start Shiny Server 
 shinyServer(function(input,output){
   
 #####Reactive functions 
   
-  
   getFullTable <- reactive({
-    #Returns full table given dataType 
+  #returns search results given data type 
     dataType <- input$dataType
-     
-      if (input$exactMatch == FALSE)
-        searchTerms <- paste0(input$searchTerms,'*')
-      else
-        searchTerms <- input$searchTerms
+    searchTerms <- input$searchTerms
+    if(dataType == 'sra_acc'){
+      n <- getSRA(search_terms = searchTerms, sra_con = sra_con, out_types = 'run', acc_only = TRUE)
+      run_codes <- as.vector(n[,1])
+      print(class(run_codes))
+      ftp_col <-  listSRAfile( "SRR390728", sra_con,fileType = 'fastq', srcType='fasp')
+      print(ftp_col)
+      #print(class(run_codes))
+        #getFASTQinfo( sra_con = sra_con,run_codes, srcType = 'fasp' )
+      n <- cbind(n, ftp_col)
       
-      n = getSRA(search_terms = searchTerms, sra_con = sra_con, out_types = dataType,
-                    acc_only = input$acc_only)
-     
+    }
+    else{
+    n <- getSRA(search_terms = searchTerms, sra_con = sra_con, out_types = dataType)
+    indexes = 1:(nrow(n))
+    n <- cbind(indexes, n)
+    }
   })
   
-  getColumns <- reactive({
+  observeEvent(input$actionButton,{
+    selected_acc  = as.integer(input$mainTable_rows_selected)
+    #ftp_col <- getFASTQinfo(selected_acc)
+    table <- data.frame()
+    n = getFullTable()
+    n <- n[selected_acc,]
+    n <- n[,"run"]
+    print(n)
+    #ftp_col <- getFASTQinfo(selected_acc, sra_con,)
     
-    columns <- input$col_choices  #this is saving the "old" column settings from previous. 
-    if (length(columns) == 0 || ! (columns %in% colnames(getFullTable())))
-       #if no preferences entered yet or is left over from past
-      columns <- colnames(getFullTable())
-
-    })
-    
-  
-  output$fqdmessage<- renderPrint({
-     input$fqdbutton
-     isolate({
-     n <-  doFastqDump()
-     })
-   
+    ftp_col = listSRAfile( as.vector(n), sra_con, fileType = 'sra' )
+    print(ftp_col)
   })
   
-  doFastqDump <- reactive({
-    fastqDump(sraAccession = input$fastqcode, maxSpotId = 25)
-  })
+  #### Output Functions
   output$mainTable <- DT::renderDataTable({
-    #Draw main result table, only after button pressed 
     input$searchButton
     isolate({
-      n <- getFullTable()
-      
+      table  <- getFullTable() 
       })
     }, 
+    # LOOK AT DOM 
+    ####################<<<<<<<<<<<<<<<<<
+    rownames = FALSE,
+    extensions = c('ColVis','ColReorder'),
+    options = list(dom = 'RC<"clear">lfrtp',
+                   scrollX = TRUE, scrollCollapse = TRUE,
+                   colReorder = list(realtime = TRUE),
+                   lengthMenu = c(15, 30, 50),pageLength = 15,
+                   searchHighlight = TRUE,
+                   initComplete = JS(
+                     "function(settings, json) {",
+                     "$(this.api().table().header()).css
+                     ({'background-color': '#008B8B', 'color': '#fff'});",
+                     "}"
+                     )
+                   ))
+  doFastqDump <- reactive({
     
-    options = list(columnDefs = list(list(
-      targets = 6,
-      render = JS(
-        "function(data, type, row, meta) {",
-        "return type === 'display' && data.length > 6 ?",
-        "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
-        "}")
-    )),lengthMenu = c(10, 25, 50),pageLength = 10)
-   )
-  
-  output$errorBoard <- renderText({
-    n <- " SEARCH ACCESSION RESULTS: 
-           Enter a correctly formatted code, such as 
-          'SRA003625', 'SRP000403', 'SRS001834',
-          'SRR013350', or 'SRX002512 to display related studies, experiments,samples,  
-           runs, or submissions. An improperly formatted code will yield an
-           error. "
-    
+    input$fqdbutton
+    isolate({
+      splitStyle <- input$splitStyle
+      acc <- input$fastqcode
+      range <- input$maxMin
+      outdir <- input$outDir
+      if(! acc == '')
+        fastqDump(sraAccession = acc,  splitStyle = splitStyle,
+                  maxSpotId = range[2],minSpotId = range[1], outdir = outdir)
+    })
   })
   
-#   output$columnPanel <- renderUI({
-#     #Advanced Setting Panel 
   
-#     input$searchButton
-#     isolate({
-#     table <- getFullTable
-#     checkboxGroupInput('col_choices', label = "Display Fields", choices = colnames(getFullTable()),
-#                        selected = getColumns() )
-#     })
-#   })
-  #Downloading Fastq File Help:
-  #http://shiny.rstudio.com/articles/download.html
-  #----------> How to get fastq result to show in app, instead of going to default directory? 
+  getFileName <- reactive({
+    acc_code <- input$fastqcode
+    splitStyle <- input$splitStyle
+    print(paste(input$fastqcode))
+    p <- paste(acc_code, '.', splitStyle,sep='') 
+    print(p)
+  })
   
+  output$downloadSearchResults <- downloadHandler(
+    
+    filename = function(){
+      name <-paste0(Sys.Date(),'-',input$searchTerms,'results.csv')
+      name <- gsub(" ","",a)
+      name
+      },
+    
+    content = function(file) {
+        n <- getFullTable()
+#         if(length(input$mainTable_rows_selected) != 0){
+#            selected_acc  = as.integer(input$mainTable_rows_selected)
+#             print(class(selected_acc))
+#             n <- n[selected_acc,]
+#           
+#       }
+       write.csv(n, file)
+    }
+  )
 
-
   
-})#End server 
+}) #End server 
     
 
 
