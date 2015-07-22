@@ -39,8 +39,6 @@ shinyServer(function(input,output){
      else{
         n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
-        Index = 1:(nrow(n)) #Add numerical indexes 
-        n <- cbind(Index, n)
      }
   })
   
@@ -50,6 +48,7 @@ shinyServer(function(input,output){
     actionType = input$actionType
     selected_rows  = input$mainTable_rows_selected
     n = getFullTable()
+    print(n[selected_rows,])
     switch(actionType,
            "fqinfo" = {
              if (length(selected_rows) != 0){
@@ -81,17 +80,22 @@ shinyServer(function(input,output){
   #### Output Functions
   output$mainTable <- DT::renderDataTable({
     input$searchButton
+    
     isolate({
-      if(input$searchTerms != "")
+      searchTerms = input$searchTerms
+      if(searchTerms != "")
       {table  <- getFullTable() 
+       numrows = nrow(table)
+       print(numrows)
+       table <- table
       }
       })
-    }, 
+    }, rownames = TRUE,
     # LOOK AT DOM 
     ####################<<<<<<<<<<<<<<<<<
-    escape = FALSE, rownames = FALSE,
+    escape = FALSE,
     extensions = c('ColVis','ColReorder'),
-    options = list(dom = 'RC<"clear">lfrtp',
+    options = list(dom = 'RC<"clear">lifrtp',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    colReorder = list(realtime = TRUE),
                    lengthMenu = c(15, 30, 50),pageLength = 15,
