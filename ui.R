@@ -5,88 +5,70 @@ library(shinythemes)
 
 teal_color = '#008B8B'
 
-shinyUI(fixedPage(theme = shinytheme("flatly"),
+shinyUI(fluidPage(theme = shinytheme("cerulean"),
   titlePanel("SRAdb Web App"),
-   navbarPage("Pages:",
-      tabPanel(
-              "Text Search",
-              wellPanel(
-              fixedRow(
-                column(6,
-                     textInput("searchTerms", label = h4("Search Terms:"), 
-                               value = "Flamingo"),
-                     checkboxInput("exactMatch", label = "Exact Text Search", 
-                                   value = FALSE)
-                ),
-                column(4,
-                     selectInput("dataType", label = h4("Result Type:"), 
-                                 choices = list("Study" = "study", "Experiment" = "experiment" ,
-                                                "SRA" = "sra","Submission" = "submission",
-                                                "Sample" = "sample", "Run" = "run", 
-                                                "SRA Accessions" = "sra_acc"), selected = "run"
-                                                #"SRA Brief" = "sra_brief", "SRA Accession" = "sra_acc"
-                                                
-                                 ),
-                     checkboxInput("acc_only", label ="Display Accession Codes Only", 
-                                   value = FALSE)
-                ),
-                column(1,
-                       hr(),
-                    actionButton("searchButton",icon("search", lib = "glyphicon"))
-              )
-              )),#end Fluid Row and WellPanel
-          #hr(), 
-          fixedRow(
-            column(5,
-            selectInput("actionType", label = h4("Action:"), choices = list("Get FastQ Dump Files" = 1, 
-                                                                   "Start IGV" = 2))),
-            column(1,
-            hr(),
-            actionButton("actionButton", icon("arrow-right", lib = "font-awesome"))
+    wellPanel(
+        fluidRow(
+            column(4,
+                textInput("searchTerms", label = h4("Search Terms:"), 
+                          value = "")
             ),
-            column(6,
-            conditionalPanel(condition = "input.action == 1",
-                             wellPanel(radioButtons("splitStyle", label = "Output File Format:",
-                                          choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                                          selected = 1))
-                             )
-                   )
-          ),
-             
-          
-          DT::dataTableOutput('mainTable'),
-          downloadButton("downloadSearchResults", label = "Download Results")
-          
-          
-          ),
-      tabPanel( "Download FastQ Files",
-           wellPanel(
-              fluidRow(
-                column(4,textInput("fastqcode", label = h4("Accession Code:"), 
-                                   value = ""))
-                      ),
-              h4("Download Options:"),
-              hr(),
-              fluidRow(
-                column(3,
-                radioButtons("splitStyle", label = "Output File Format:",
-                             choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                             selected = 1)
-                ),
-                column(3,
-                       textInput( "outDir",label = "Specify Desired Download Location")
-                       ),
-                
-              column(2,
-                     fileInput("justLook", label = "Browse to check downloaded")
+            column(3,
+                selectInput("dataType", label = h4("View:"), 
+                            choices = list("Study" = "study", "Experiment" = "experiment" ,
+                                            "SRA" = "sra","Submission" = "submission",
+                                            "Sample" = "sample", "Run" = "run", 
+                                            "SRA Accessions" = "sra_acc", 
+                                           "SRA Summary" = "srabrief"), selected = "srabrief"
+                )
+            ),
+            column(2,
+                hr(),
+                actionButton("searchButton",icon("search", lib = "glyphicon"))
+            )
+          )),#end Fluid Row and WellPanel
+           
+        fixedRow(
+            column(12,
+                   fixedRow(
+                     
+                     column(4, 
+                            selectInput("actionType", label = NULL,
+                                        choices = list("Choose Action" = "none",
+                                                       "Get FastQ Dump Files" = "fastqdump",
+                                                       "Download" = "download",
+                                                       "FastQ info" = "fqinfo",
+                                                       "Start IGV" = "igv"))
+                     ),
+                     column(5,
+                            conditionalPanel( condition = "input.actionType != 'download'",
+                              actionButton("actionButton", label = 'Submit')#icon("arrow-right", lib = "font-awesome"))
+                            ),
+                            conditionalPanel( condition = "input.actionType == 'download'",
+                              downloadButton("downloadSelected", label = 'Submit')              
+                              )
+                     ),
+                     column(2,
+                            downloadButton("downloadFullSRA", label = " Download Full SRA Table")
                      )
-              ),
-              downloadButton("fastqDump", label = h6("Download")),
-              textOutput("fastqMessage")
-           )
-      )
-   ) #end tabsetPanel 
+                     ),
+            
+                conditionalPanel(condition = "input.actionType == 'fastqdump'",
+                                 wellPanel(radioButtons("splitStyle", label = "Output File Format:",
+                                                        choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
+                                                        selected = "gzip")
+                                 )
+                )
+            )
+        ),
+             
+       fixedRow(   
+         column(12,
+                hr(),
+                DT::dataTableOutput('mainTable'))
+       )  
+          
+  )
+) 
 
-)#sidebarLayout 
   
-)
