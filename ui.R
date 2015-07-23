@@ -1,9 +1,12 @@
-#ui.R SRAdb-app
+#ui.R    SRAdb-app
+#Olivia Zhang  July 9, 2015
+#======================#
 library(shiny)
 library(DT)
 library(shinythemes)
+library(shinyFiles)
+#======================#
 
-teal_color = '#008B8B'
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
   titlePanel("SRAdb Web App"),
@@ -16,23 +19,25 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
             column(3,
                 selectInput("dataType", label = h4("View:"), 
                             choices = list("Study" = "study", "Experiment" = "experiment" ,
-                                            "SRA" = "sra","Submission" = "submission",
-                                            "Sample" = "sample", "Run" = "run", 
-                                            "SRA Accessions" = "sra_acc", 
-                                           "SRA Summary" = "srabrief"), selected = "srabrief"
+                                          "SRA" = "sra","Submission" = "submission",
+                                          "Sample" = "sample", "Run" = "run", 
+                                          "SRA Accessions" = "sra_acc", 
+                                          "SRA Summary" = "srabrief"), selected = "srabrief"
                 )
             ),
             column(2,
                 hr(),
                 actionButton("searchButton",icon("search", lib = "glyphicon"))
             )
-          )),#end Fluid Row and WellPanel
-           
-        fixedRow(
+          )),
+        fluidRow(
             column(12,
-                   fixedRow(
-                     
-                     column(4, 
+                   fluidRow(
+                     column(1),
+                     column(3,
+                            h4('Selected Rows:')
+                            ),
+                     column(3, 
                             selectInput("actionType", label = NULL,
                                         choices = list("Choose Action" = "none",
                                                        "Get FastQ Dump Files" = "fastqdump",
@@ -40,7 +45,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                        "FastQ info" = "fqinfo",
                                                        "Start IGV" = "igv"))
                      ),
-                     column(5,
+                     column(2,
                             conditionalPanel( condition = "input.actionType != 'download'",
                               actionButton("actionButton", label = 'Submit')#icon("arrow-right", lib = "font-awesome"))
                             ),
@@ -54,18 +59,43 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                      ),
             
                 conditionalPanel(condition = "input.actionType == 'fastqdump'",
-                                 wellPanel(radioButtons("splitStyle", label = "Output File Format:",
+                                 wellPanel(
+                                   fluidRow(
+                                   column(2,
+                                          radioButtons("fqd_splitStyle", label = "Output Format:",
                                                         choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                                                        selected = "gzip")
+                                                        selected = "gzip")),
+                                   column(2,
+                                          numericInput('fqd_min', label = "Min Spot ID", value = 0),
+                                          numericInput('fqd_max', label = "Max Spot ID", value =0)
+                                   ),
+                                   column(4,
+                                          selectizeInput("fqd_options", label = NULL,
+                                                multiple = TRUE,
+                                                choices = list("Split Spot", "Skip Technical",
+                                                               "Offset", "Original Format",
+                                                               "Fasta", "Dump Base", "Dump cs"),
+                                                options = list(placeholder = 'Use Options'))
+                                   ),
+                                   column(4,
+                                          shinyDirButton("fqd_outdir",title = "Choose Download Directory for Fastq Files",
+                                                         label = "Choose OutDir",
+                                                         class = NULL),
+                                          verbatimTextOutput('fqd_outdirpath')
+                                   )
+                                   
+                                   )
                                  )
                 )
             )
         ),
-             
-       fixedRow(   
-         column(12,
+       hr(),      
+       tabsetPanel( id = "tabSet",
+         tabPanel( "Results Table", value = "results",
                 hr(),
-                DT::dataTableOutput('mainTable'))
+                DT::dataTableOutput('mainTable')),
+         tabPanel("operation", value = "operation",
+                  uiOutput("operation"))
        )  
           
   )

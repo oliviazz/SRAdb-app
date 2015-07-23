@@ -1,114 +1,87 @@
-#server.R  #SRAdb-app Olivia Zhang   July 9, 2015 
+#server.R  SRAdb-app 
+#Olivia Zhang   July 9, 2015 
 
-#==========================
+#..........TO DO:..........................
 #
 # FastQ dump, Diagram from R (?)
 # shift select many 
-#
-#Load required packages
+#..........................................
+
+#===========================================#
 library(shiny)
 library(SRAdb)
 library(DT)
-
 sra_dbname <- 'SRAmetadb.sqlite'	
 if(!file.exists('SRAmetadb.sqlite'))
   sqlfile <<- getSRAdbFile()
-sra_con<- dbConnect(dbDriver("SQLite"), sra_dbname) 
+sra_con<- dbConnect(dbDriver("SQLite"), 
+                    sra_dbname) 
 source('~/sra_toolkit/bin/fastqDump_v1.R')
-
+#===========================================#
 #Start Shiny Server 
-shinyServer(function(input,output){
+shinyServer(function(input,output,session){
+                                # Any danger w/ including "session" as arg?
   
-#####Reactive functions 
-  
-  getFullTable <- reactive({#---------------WORKING
-  #returns search results given data type 
+#Return Table fromsearch terms, data type-------------------------- 
+  getFullTable <- reactive({
     dataType <- input$dataType
     searchTerms <- input$searchTerms
-    
     if(dataType == 'sra_acc'){
+      
           n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con, 
                       out_types = 'run', acc_only = TRUE)
           run_codes <- n[,"run"]
           n <- listSRAfile( as.vector(run_codes), sra_con, 
                             fileType = 'sra')
-          print(n$ftp)
-          n$ftp <- createLink(n$ftp) #create HTML links to download
+          #getsize <- getSRAinfo(as.vector(run_codes),sra_con, sraType = 'sra')
+          #print(getsize)
+          n$ftp <- createLink(n$ftp) #links to download SRA
+          
+          #n <- cbind(n,getsize[,"size(KB)"])
+          
           return(n)
          }
      else{
+       
         n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
      }
   })
-  
-  ############################################ Action button 
-  
-  observeEvent(input$actionButton,{ 
-    actionType = input$actionType
-    selected_rows  = input$mainTable_rows_selected
-    n = getFullTable()
-    print(n[selected_rows,])
-    switch(actionType,
-           "fqinfo" = {
-             if (length(selected_rows) != 0){
-               selected_rows <- as.integer(selected_rows)
-               n = getFullTable()
-               n_selected <- n[selected_rows,]
-               
-               if(!is.element("run", colnames(n_selected)))
-                 warning('Select data of type "run"')
-               
-               else{
-                 run_codes <- n[,"run"]
-                 ftp_col <- getFASTQinfo(sra_con, run_codes)
-               }
-             }
-           },
-           "igv" = {
-             print('hi')},
-           "none" = {
-             
-           }
-           
-           )
-    
-  })
-  #output$session <- renderPrint(function(){
-    #list.files(choose.dir())})
-  
-  #### Output Functions
+
+#Create Results Table with Options-------------------------------
   output$mainTable <- DT::renderDataTable({
     input$searchButton
-    
     isolate({
       searchTerms = input$searchTerms
       if(searchTerms != "")
       {table  <- getFullTable() 
-       numrows = nrow(table)
-       print(numrows)
-       table <- table
       }
       })
     }, rownames = TRUE,
-    # LOOK AT DOM 
-    ####################<<<<<<<<<<<<<<<<<
     escape = FALSE,
     extensions = c('ColVis','ColReorder'),
     options = list(dom = 'RC<"clear">lifrtp',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    colReorder = list(realtime = TRUE),
-                   lengthMenu = c(15, 30, 50),pageLength = 15,
+                   lengthMenu = c(15, 50, 100),pageLength = 15,
                    searchHighlight = TRUE,
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
                      ({'background-color': '#008B8B', 'color': '#fff'});",
                      "}"
-                     )
+                   )
+#                    columnDefs = list(list(
+#                      targets = 6,
+#                      render = JS(
+#                      "function(data, type, row, meta) {",
+#                      "return type === 'display' && data.length > 6 ?",
+#                      "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
+#                      "}")
+#                    ))
                    ))
 
-  #Donwload search results to .csv file
+#Download entire SRA Table-------------------------------------- 
   output$downloadFullSRA<- downloadHandler(
     filename  = function() { 
       a <- paste0(Sys.Date(),'-',input$searchTerms,'FullResults.csv')
@@ -117,10 +90,10 @@ shinyServer(function(input,output){
     content = function(file){
       n <- getSRA(search_terms = input$searchTerms, sra_con = sra_con, out_types = "sra")
       write.csv(n,file)
-      #remove index column
     }
   )
   
+#Download selected Columns-------------------------------------
   output$downloadSelected <- downloadHandler(
     filename  = function() { 
       a <- paste0(Sys.Date(),'-',input$searchTerms,'Results.csv')
@@ -129,49 +102,106 @@ shinyServer(function(input,output){
     content = function(file){
       n <- getFullTable()
       if(length(input$mainTable_rows_selected) != 0){
-        selected_acc  = as.integer(input$mainTable_rows_selected) #gets row indexes 
+        selected_acc  = input$mainTable_rows_selected #gets row indexes 
         n <- n[selected_acc,]#
       }
       write.csv(n,file)
-      #remove index column
     }
   )
+  
+  #Display chosen directory
+  output$fqd_outdirpath <- renderPrint({
+    roots = c(wd='/Users')
+    print(parseDirPath(roots , input$fqd_outdir))
+  })
+  
+  #Render Filesystem choosing  
+  shinyDirChoose("fqd_outdir", input = input, session = session,
+               roots=c(wd = '/Users'), filetypes=c('', '.*'))
 
-}) #End server 
+  
+  #Perform actions on selected rows-------------------------------  
+  
+  
+  observeEvent(input$actionButton, 
+               { 
+                 actionType = input$actionType
+                 selected_rows  = as.integer(input$mainTable_rows_selected)
+                 if(length(selected_rows) != 0){
+                   n = getFullTable()
+                   n_selected <- n[selected_rows,]
+                   print(n_selected)
+                   switch(actionType,
+                          
+                          
+                          "fqinfo" = {
+                            print(colnames(n_selected))
+                            if(!is.element("run", colnames(n_selected))){
+                              warning('Select data of type "run"')
+                            }
+                            else{
+                              run_codes <- as.vector(n_selected[,"run"])
+                              fqinfo <- getFASTQinfo(run_codes, srcType = 'ftp')
+                              updateTabsetPanel(session, "tabSet", selected = "operation")
+                              update
+                            }
+                          },
+                          "fastqdump" = {
+                            print('hello')
+                            splitStyle <- input$fqd_splitStyle
+                            minSpotId <- input$fqd_min
+                            maxSpotId <- input$fqd_max
+                            outdir <- "output.fqd_outdirpath"
+                            updateTabsetPanel(session, "tabSet", selected = "operation")
+                            print(outdir)
+                            
+                          }
+                   )
+                 }
+                 else{
+                   warning('Choose columns!')
+                 }
+                 
+               })
+  
+})
+#######_FUNCTIONS_#######################################
 
-#FUNCTIONS
-################################################################################################
-#------------
+# Bring Directory Selection pop-up-------------------------------
 choose.dir <- function() {
   system("osascript -e 'tell app \"R\" to POSIX path of (choose folder with prompt \"Choose Folder:\")' > /tmp/R_folder", 
          intern = FALSE, ignore.stderr = TRUE)
   p <- system("cat /tmp/R_folder && rm -f /tmp/R_folder", intern = TRUE)
   return(ifelse(length(p), p, NA))
-  #if p exists, send p of length p; otherwise send nothing of length nothing 
 }
-#------------
+
+# Clickable HTML Link Given URL(val)------------------------------
 createLink <- function(val) {
   sprintf('<a href="%s" target="_blank" 
           class="btn btn-link"> Download Run SRA </a>',val)
 }
-#HTML hyperlink
-#------------
+
+# Modified getSRA------------------------------------------------
 getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study", 
                                       "experiment", "sample", "run", "srabrief"), sra_con, acc_only = FALSE) 
 {
   out_types <- match.arg(out_types, several.ok = T)
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
   
-  #building correct indices for all 
+  #defining correct indices 
   sra_fields_indice <- list( srabrief = c(20,19,58,7,8,22,47,72), #sample title include 
-                    run = seq(which(sra_fields == "run_ID") + 
-                                        1, which(sra_fields == "experiment_ID") - 1), experiment = seq(which(sra_fields == 
-                                                                                                               "experiment_ID") + 1, which(sra_fields == "sample_ID") - 
-                                                                                                         1), sample = seq(which(sra_fields == "sample_ID") + 1, 
-                                                                                                                          which(sra_fields == "study_ID") - 1), study = seq(which(sra_fields == 
-                                                                                                                                                                                    "study_ID") + 1, which(sra_fields == "submission_ID") - 
-                                                                                                                                                                              1), submission = seq(which(sra_fields == "submission_ID") + 
-                                                                                                                                                                                                     1, length(sra_fields)), sra = c(6:75))
+                    run = seq(which(sra_fields == "run_ID") + 1,
+                              which(sra_fields == "experiment_ID") - 1),
+                    experiment = seq(which(sra_fields == "experiment_ID") + 1, 
+                              which(sra_fields == "sample_ID") - 1), 
+                    sample = seq(which(sra_fields == "sample_ID") + 1, 
+                                 which(sra_fields == "study_ID") - 1), 
+                    study = seq(which(sra_fields == "study_ID") + 1,
+                                which(sra_fields == "submission_ID") - 1), 
+                    submission = seq(which(sra_fields == "submission_ID") +1,
+                                length(sra_fields)),
+                    sra = c(6:75))
+  
   if (is.element("sra", out_types)) {
     sra_fields_indice_1 <- sra_fields_indice[["sra"]]
     select_fields = sra_fields[sra_fields_indice_1]
@@ -204,7 +234,7 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   return(rs)
 }
 
-
+############################################################################################
 
 
 
