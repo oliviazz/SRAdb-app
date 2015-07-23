@@ -27,22 +27,15 @@ shinyServer(function(input,output,session){
     dataType <- input$dataType
     searchTerms <- input$searchTerms
     if(dataType == 'sra_acc'){
-      
           n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con, 
                       out_types = 'run', acc_only = TRUE)
           run_codes <- n[,"run"]
           n <- listSRAfile( as.vector(run_codes), sra_con, 
                             fileType = 'sra')
-          #getsize <- getSRAinfo(as.vector(run_codes),sra_con, sraType = 'sra')
-          #print(getsize)
-          n$ftp <- createLink(n$ftp) #links to download SRA
-          
-          #n <- cbind(n,getsize[,"size(KB)"])
-          
+          n$ftp <- createLink(n$ftp) #links to download SRA 
           return(n)
          }
      else{
-       
         n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
      }
@@ -92,7 +85,6 @@ shinyServer(function(input,output,session){
       write.csv(n,file)
     }
   )
-  
 #Download selected Columns-------------------------------------
   output$downloadSelected <- downloadHandler(
     filename  = function() { 
@@ -108,32 +100,49 @@ shinyServer(function(input,output,session){
       write.csv(n,file)
     }
   )
-  
-  #Display chosen directory
-  output$fqd_outdirpath <- renderPrint({
+#/////////////////////////////
+#Get chosen directory
+  getOutdirpath <- reactive({
     roots = c(wd='/Users')
-    print(parseDirPath(roots , input$fqd_outdir))
+    return(parseDirPath(roots , input$outdirButton))
+  })
+#Display chosen directory
+  output$show_outdirpath <- renderText({
+    input$outdirButton
+    isolate({
+      getOutdirpath()
+    })
   })
   
-  #Render Filesystem choosing  
-  shinyDirChoose("fqd_outdir", input = input, session = session,
+#Filesystem choosing  
+  shinyDirChoose("outdirButton", input = input, session = session,
                roots=c(wd = '/Users'), filetypes=c('', '.*'))
-
+#/////////////////////////////////
   
+#********************IN PROGRESS!!!!!!!!!!!!!!!!!
   #Perform actions on selected rows-------------------------------  
-  
-  
+#   output$operationResults <- DT::renderUI({
+#     input$actionButton
+#     isolate({
+#       n <- getOperationResults()
+#       #render UI, include datatable if needed for results 
+#       #but not otherwise?
+#     })
+#   })
+#   
+#   getOperationResults <- reactive({
+#     
+#   })
+  #################################################IN PROGRESS!!!!!!!!!!!!!!!!!!!
   observeEvent(input$actionButton, 
                { 
-                 actionType = input$actionType
+                 operationType = input$operationType
                  selected_rows  = as.integer(input$mainTable_rows_selected)
                  if(length(selected_rows) != 0){
                    n = getFullTable()
                    n_selected <- n[selected_rows,]
                    print(n_selected)
-                   switch(actionType,
-                          
-                          
+                   switch(operationType,
                           "fqinfo" = {
                             print(colnames(n_selected))
                             if(!is.element("run", colnames(n_selected))){
@@ -143,17 +152,28 @@ shinyServer(function(input,output,session){
                               run_codes <- as.vector(n_selected[,"run"])
                               fqinfo <- getFASTQinfo(run_codes, srcType = 'ftp')
                               updateTabsetPanel(session, "tabSet", selected = "operation")
-                              update
+                              #update
                             }
                           },
                           "fastqdump" = {
-                            print('hello')
+                            options <- input$fqd_options
                             splitStyle <- input$fqd_splitStyle
                             minSpotId <- input$fqd_min
                             maxSpotId <- input$fqd_max
-                            outdir <- "output.fqd_outdirpath"
-                            updateTabsetPanel(session, "tabSet", selected = "operation")
-                            print(outdir)
+                            outdir <- getOutdirpath()
+                            if(!is.element("run", colnames(n_selected))){
+                              warning('Select data of type "run"')
+                            }
+                            else{
+                              run_codes <- as.vector(n_selected[,"run"])
+                              if(length(run_codes) > 1){
+                                warning('Warning: Multiple runs selected. FASTQ Dump
+                                        will only be performed for first run. ')
+                                run_codes <- run_codes[1]
+                              }
+                              fastqDump(run_codes, minSpotId = minSpotId, maxSpotId = maxSpotId,
+                                        outdir = outdir, splitStyle = splitStyle)
+                            }
                             
                           }
                    )
@@ -165,7 +185,9 @@ shinyServer(function(input,output,session){
                })
   
 })
-#######_FUNCTIONS_#######################################
+#######_FUNCTIONS_####################################################################################
+######################################################################################################
+######################################################################################################
 
 # Bring Directory Selection pop-up-------------------------------
 choose.dir <- function() {

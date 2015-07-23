@@ -33,12 +33,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
         fluidRow(
             column(12,
                    fluidRow(
-                     column(1),
-                     column(3,
-                            h4('Selected Rows:')
+                    
+                     column(3,offset = 1,
+                            h5('Operate on Selected Rows:')
                             ),
                      column(3, 
-                            selectInput("actionType", label = NULL,
+                            selectInput("operationType", label = NULL,
                                         choices = list("Choose Action" = "none",
                                                        "Get FastQ Dump Files" = "fastqdump",
                                                        "Download" = "download",
@@ -46,10 +46,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                        "Start IGV" = "igv"))
                      ),
                      column(2,
-                            conditionalPanel( condition = "input.actionType != 'download'",
-                              actionButton("actionButton", label = 'Submit')#icon("arrow-right", lib = "font-awesome"))
-                            ),
-                            conditionalPanel( condition = "input.actionType == 'download'",
+                            conditionalPanel( condition = "input.operationType != 'download'",
+                              actionButton("actionButton", label = 'Submit', class = "btn btn-primary" )
+                            ), #different button depending on operationType
+                            conditionalPanel( condition = "input.operationType == 'download'",
                               downloadButton("downloadSelected", label = 'Submit')              
                               )
                      ),
@@ -58,45 +58,54 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                      )
                      ),
             
-                conditionalPanel(condition = "input.actionType == 'fastqdump'",
+                conditionalPanel(condition = "input.operationType == 'fastqdump'",
                                  wellPanel(
                                    fluidRow(
                                    column(2,
                                           radioButtons("fqd_splitStyle", label = "Output Format:",
-                                                        choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                                                        selected = "gzip")),
+                                                       choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
+                                                       selected = "gzip"),
+                                          checkboxInput("fullFile", label = strong("Get Entire File"), value = TRUE)
+                                   ),
                                    column(2,
-                                          numericInput('fqd_min', label = "Min Spot ID", value = 0),
-                                          numericInput('fqd_max', label = "Max Spot ID", value =0)
+                                          conditionalPanel(condition = "!input.fullFile",
+                                                           numericInput('fqd_min', label = "Min SpotID", value = 0),
+                                                           numericInput('fqd_max', label = "Max SpotID", value =0)
+                                          )
                                    ),
                                    column(4,
-                                          selectizeInput("fqd_options", label = NULL,
+                                          shinyDirButton("outdirButton",title = "Choose Download Directory for Fastq Files",
+                                                         label = "Choose Download Location:",
+                                                         class = "btn btn-link"),
+                                          verbatimTextOutput('show_outdirpath'),
+                                          selectizeInput("fqd_options", label = "Options",
                                                 multiple = TRUE,
                                                 choices = list("Split Spot", "Skip Technical",
                                                                "Offset", "Original Format",
                                                                "Fasta", "Dump Base", "Dump cs"),
-                                                options = list(placeholder = 'Use Options'))
+                                                options = list(placeholder = 'Click to Specify Options'))
+                                          
                                    ),
                                    column(4,
-                                          shinyDirButton("fqd_outdir",title = "Choose Download Directory for Fastq Files",
-                                                         label = "Choose OutDir",
-                                                         class = NULL),
-                                          verbatimTextOutput('fqd_outdirpath')
+                                          conditionalPanel(condition = "input.viewFiles == 'finished'",
+                                          shinyFilesButton("viewFiles", label = "View Files",
+                                                           title = "View Files", class = NULL, multiple = FALSE)
+                                          )
                                    )
-                                   
-                                   )
-                                 )
+                                )
+                              )
                 )
             )
         ),
-       hr(),      
+       hr(),  
+  
        tabsetPanel( id = "tabSet",
-         tabPanel( "Results Table", value = "results",
+         tabPanel( "Search Results", value = "results",
                 hr(),
                 DT::dataTableOutput('mainTable')),
-         tabPanel("operation", value = "operation",
-                  uiOutput("operation"))
-       )  
+         tabPanel("Operation Results", value = "operation",
+                uiOutput("operationResults")
+       ))  
           
   )
 ) 
