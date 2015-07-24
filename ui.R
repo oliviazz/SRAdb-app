@@ -9,7 +9,7 @@ library(shinyFiles)
 
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
-  titlePanel("SRAdb Web App"),
+  titlePanel("SRAdb Web Application"),
     wellPanel(
         fluidRow(
             column(4,
@@ -35,29 +35,31 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                    fluidRow(
                     
                      column(3,offset = 1,
-                            h5('Operate on Selected Rows:')
+                            em(h5('Perform on Selected Rows:'))
                             ),
                      column(3, 
                             selectInput("operationType", label = NULL,
-                                        choices = list("Choose Action" = "none",
+                                        choices = list("Choose Operation" = "none",
+                                                       "Download Selected" = "download",
                                                        "Get FastQ Dump Files" = "fastqdump",
+                                                       "Get FastQ Info" = "fqinfo",
+                                                       "Get SRA Info" = "srainfo",
                                                        "Download" = "download",
-                                                       "FastQ info" = "fqinfo",
                                                        "Start IGV" = "igv"))
                      ),
                      column(2,
                             conditionalPanel( condition = "input.operationType != 'download'",
                               actionButton("actionButton", label = 'Submit', class = "btn btn-primary" )
-                            ), #different button depending on operationType
+                            ), 
+                            #Change button to download button if operation = download
                             conditionalPanel( condition = "input.operationType == 'download'",
-                              downloadButton("downloadSelected", label = 'Submit')              
+                              downloadButton("downloadSelected", label = 'Submit', class = "btn btn-primary")              
                               )
                      ),
                      column(2,
                             downloadButton("downloadFullSRA", label = " Download Full SRA Table")
                      )
-                     ),
-            
+                ),
                 conditionalPanel(condition = "input.operationType == 'fastqdump'",
                                  wellPanel(
                                    fluidRow(
@@ -69,8 +71,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                    ),
                                    column(2,
                                           conditionalPanel(condition = "!input.fullFile",
-                                                           numericInput('fqd_min', label = "Min SpotID", value = 0),
-                                                           numericInput('fqd_max', label = "Max SpotID", value =0)
+                                                           numericInput('fqd_min', label = "Min SpotID", value = NULL),
+                                                           numericInput('fqd_max', label = "Max SpotID", value = NULL)
                                           )
                                    ),
                                    column(4,
@@ -84,7 +86,6 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                "Offset", "Original Format",
                                                                "Fasta", "Dump Base", "Dump cs"),
                                                 options = list(placeholder = 'Click to Specify Options'))
-                                          
                                    ),
                                    column(4,
                                           conditionalPanel(condition = "input.viewFiles == 'finished'",
@@ -104,7 +105,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                 hr(),
                 DT::dataTableOutput('mainTable')),
          tabPanel("Operation Results", value = "operation",
-                uiOutput("operationResults")
+                DT::dataTableOutput("operationResults")
        ))  
           
   )

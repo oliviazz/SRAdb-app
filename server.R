@@ -2,7 +2,6 @@
 #Olivia Zhang   July 9, 2015 
 
 #..........TO DO:..........................
-#
 # FastQ dump, Diagram from R (?)
 # shift select many 
 #..........................................
@@ -20,8 +19,8 @@ source('~/sra_toolkit/bin/fastqDump_v1.R')
 #===========================================#
 #Start Shiny Server 
 shinyServer(function(input,output,session){
-                                # Any danger w/ including "session" as arg?
-  
+
+#%%%%%%%%%%%%%%%%%%%% SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
 #Return Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
     dataType <- input$dataType
@@ -47,24 +46,28 @@ shinyServer(function(input,output,session){
     isolate({
       searchTerms = input$searchTerms
       if(searchTerms != "")
-      {table  <- getFullTable() 
+      { 
+        updateTabsetPanel(session, "tabSet",
+                          selected = "results")
+        table  <- getFullTable() 
       }
       })
     }, rownames = TRUE,
     escape = FALSE,
-    extensions = c('ColVis','ColReorder'),
-    options = list(dom = 'RC<"clear">lifrtp',
+    extensions = c('ColVis','ColReorder', 'TableTools'),
+    options = list(dom = 'RC<"clear">lifrStp',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    colReorder = list(realtime = TRUE),
                    lengthMenu = c(15, 50, 100),pageLength = 15,
                    searchHighlight = TRUE,
+                   #tableTools = list(sSwfPath = copySWF()),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
                      ({'background-color': '#008B8B', 'color': '#fff'});",
                      "}"
                    )
-#                    columnDefs = list(list(
+#                 columnDefs = list(list(
 #                      targets = 6,
 #                      render = JS(
 #                      "function(data, type, row, meta) {",
@@ -73,8 +76,8 @@ shinyServer(function(input,output,session){
 #                      "}")
 #                    ))
                    ))
-
-#Download entire SRA Table-------------------------------------- 
+#%%%%%%%%%%%%%%%%%%%%%% Download Handlers %%%%%%%%%%%%%%%%%%%%%%%%%%
+#Download entire SRA Table---------------------------------------- 
   output$downloadFullSRA<- downloadHandler(
     filename  = function() { 
       a <- paste0(Sys.Date(),'-',input$searchTerms,'FullResults.csv')
@@ -85,7 +88,8 @@ shinyServer(function(input,output,session){
       write.csv(n,file)
     }
   )
-#Download selected Columns-------------------------------------
+  
+#Download selected Columns---------------------------------------
   output$downloadSelected <- downloadHandler(
     filename  = function() { 
       a <- paste0(Sys.Date(),'-',input$searchTerms,'Results.csv')
@@ -100,107 +104,117 @@ shinyServer(function(input,output,session){
       write.csv(n,file)
     }
   )
-#/////////////////////////////
-#Get chosen directory
+#%%%%%%%%%%%%%%%%%%%%%%%%% Choosing Directory %%%%%%%%%%%%%%%%%%%%%%%
+  
+#Link button to directory path ---------------------------------
+  shinyDirChoose("outdirButton", input = input, session = session,
+                 roots=c(wd = '/Users'), filetypes=c('', '.*'))
+  
+#Get chosen directory ------------------------------------------
   getOutdirpath <- reactive({
     roots = c(wd='/Users')
     return(parseDirPath(roots , input$outdirButton))
   })
-#Display chosen directory
+  
+#Display chosen directory --------------------------------------
   output$show_outdirpath <- renderText({
     input$outdirButton
     isolate({
       getOutdirpath()
     })
   })
+#%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
-#Filesystem choosing  
-  shinyDirChoose("outdirButton", input = input, session = session,
-               roots=c(wd = '/Users'), filetypes=c('', '.*'))
-#/////////////////////////////////
-  
-#********************IN PROGRESS!!!!!!!!!!!!!!!!!
-  #Perform actions on selected rows-------------------------------  
-#   output$operationResults <- DT::renderUI({
-#     input$actionButton
-#     isolate({
-#       n <- getOperationResults()
-#       #render UI, include datatable if needed for results 
-#       #but not otherwise?
-#     })
-#   })
-#   
-#   getOperationResults <- reactive({
-#     
-#   })
-  #################################################IN PROGRESS!!!!!!!!!!!!!!!!!!!
-  observeEvent(input$actionButton, 
-               { 
-                 operationType = input$operationType
-                 selected_rows  = as.integer(input$mainTable_rows_selected)
-                 if(length(selected_rows) != 0){
-                   n = getFullTable()
-                   n_selected <- n[selected_rows,]
-                   print(n_selected)
-                   switch(operationType,
-                          "fqinfo" = {
-                            print(colnames(n_selected))
-                            if(!is.element("run", colnames(n_selected))){
-                              warning('Select data of type "run"')
-                            }
-                            else{
-                              run_codes <- as.vector(n_selected[,"run"])
-                              fqinfo <- getFASTQinfo(run_codes, srcType = 'ftp')
-                              updateTabsetPanel(session, "tabSet", selected = "operation")
-                              #update
-                            }
-                          },
-                          "fastqdump" = {
-                            options <- input$fqd_options
-                            splitStyle <- input$fqd_splitStyle
-                            minSpotId <- input$fqd_min
-                            maxSpotId <- input$fqd_max
-                            outdir <- getOutdirpath()
-                            if(!is.element("run", colnames(n_selected))){
-                              warning('Select data of type "run"')
-                            }
-                            else{
-                              run_codes <- as.vector(n_selected[,"run"])
-                              if(length(run_codes) > 1){
-                                warning('Warning: Multiple runs selected. FASTQ Dump
+#Trigger Operation when ActionButton Pressed ----------------------------
+  observeEvent(input$actionButton, {
+    switch( input$operationType,
+            "srainfo"= updateTabsetPanel(session, "tabSet",
+                                         selected = "operation"),
+            "fqinfo" = updateTabsetPanel(session, "tabSet",
+                                         selected = "operation"),
+            "fastqdump" = {
+              options <- input$fqd_options
+              splitStyle <- input$fqd_splitStyle
+              minSpotId <- input$fqd_min
+              maxSpotId <- input$fqd_max
+              outdir <- getOutdirpath()
+              if(!is.element("run", colnames(n_selected))){
+                warning('Select data of type "run"')
+              }
+              else{
+                run_codes <- as.vector(n_selected[,"run"])
+                if(length(run_codes) > 1){
+                  warning('Warning: Multiple runs selected. FASTQ Dump
                                         will only be performed for first run. ')
-                                run_codes <- run_codes[1]
-                              }
-                              fastqDump(run_codes, minSpotId = minSpotId, maxSpotId = maxSpotId,
-                                        outdir = outdir, splitStyle = splitStyle)
-                            }
-                            
-                          }
-                   )
-                 }
-                 else{
-                   warning('Choose columns!')
-                 }
-                 
-               })
+                  run_codes <- run_codes[1]
+                }
+                fastqDump(run_codes, minSpotId = minSpotId, maxSpotId = maxSpotId,
+                          outdir = outdir, splitStyle = splitStyle)
+              }
+              
+            }
+    )    
+  })
   
-})
-#######_FUNCTIONS_####################################################################################
-######################################################################################################
-######################################################################################################
+# Results Table for selected operations--------------------------
+output$operationResults <- renderDataTable({
+  input$actionButton #Table not drawn until Action button clicked 
+  isolate({
+    operationType = input$operationType
+    selected_rows  = as.integer(input$mainTable_rows_selected)
+    if(length(selected_rows) != 0){
+        n <- getFullTable()
+        n_selected <- n[selected_rows,]
+        switch( input$operationType,
+           "fqinfo" = {
+             if(!is.element("run", colnames(n_selected)))
+               {warning('Select data of type "run"')
+             }
+             else{
+               run_codes <- as.vector(n_selected[,"run"])
+               fqinfo <- getFASTQinfo(run_codes)
+               fqinfo$ftp <- createLink(fqinfo$ftp)
+               newBottom <- fqinfo[,1:5]  #rearrange columns to look better
+               newTop <- fqinfo[,6:11]
+               fqinfo <- cbind(newTop, newBottom)
+             }
+           },
+           "srainfo" = {
+             if(!is.element("run", colnames(n_selected)))
+             {warning('Select data of type "run"')
+             }
+             else{
+               run_codes <- as.vector(n_selected[,"run"])
+               fqinfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
+               fqinfo$ftp <- createLink(fqinfo$ftp)
+               fqinfo
+             }
+           }
+        )
+    }
+  })
+},
+escape = FALSE,
+extensions = c('ColVis','ColReorder', 'TableTools'),
+options = list(dom = 'RC<"clear">lfrtip', # RC<"clear">lifrStp',
+               scrollX = TRUE, scrollCollapse = TRUE,
+               colReorder = list(realtime = TRUE),
+               lengthMenu = c(15, 50, 100),pageLength = 15,
+               searchHighlight = TRUE,
+               tableTools = list(sSwfPath = copySWF())
+          )      
+)
+  
+})#END SERVER 
 
-# Bring Directory Selection pop-up-------------------------------
-choose.dir <- function() {
-  system("osascript -e 'tell app \"R\" to POSIX path of (choose folder with prompt \"Choose Folder:\")' > /tmp/R_folder", 
-         intern = FALSE, ignore.stderr = TRUE)
-  p <- system("cat /tmp/R_folder && rm -f /tmp/R_folder", intern = TRUE)
-  return(ifelse(length(p), p, NA))
-}
+######################################################################################################
+##################################### OTHER FUNCTUONS ################################################
+######################################################################################################
 
 # Clickable HTML Link Given URL(val)------------------------------
 createLink <- function(val) {
   sprintf('<a href="%s" target="_blank" 
-          class="btn btn-link"> Download Run SRA </a>',val)
+          class="btn btn-link"> %s </a>',val,val)
 }
 
 # Modified getSRA------------------------------------------------
@@ -255,7 +269,6 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   names(rs) <- sub("_accession", "", names(rs))
   return(rs)
 }
-
 ############################################################################################
 
 
