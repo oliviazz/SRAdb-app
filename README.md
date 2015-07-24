@@ -1,11 +1,10 @@
-Web Application for SRAdb Package in Bioconductor 
 
-Required Packages:
-*SRAdb
-*shiny
-*shinythemes
-*shinyFiles
-*DT
-
-Functions: 
-Query SRA results, get SRA/FASTQ files, FASTQ dump selected runs
++## SRAdb Web Application:
++
++- Functions:
++
++- Search SRA results (text) 
++- Get SRA and FASTQ info for selected runs
++- Perform FASTQ Dump for selected runs 
++
++--Uses packages: SRAdb, shinythemes, shinyFiles, DR
