@@ -1,5 +1,5 @@
 
-+## SRAdb Web Application:
+## SRAdb Web Application:
 +
 +- Functions:
 +
