@@ -81,6 +81,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                          label = "Choose Download Location:",
                                                          class = "btn btn-link"),
                                           verbatimTextOutput('show_outdirpath'),
+                                          shinyFilesButton("fqdCMDButton",title = "Choose Location of FastQ-dump command from SRA toolkit",
+                                                         label = "Choose FastQ-dump command location:",
+                                                         class = "btn btn-link", multiple = T),
+                                          verbatimTextOutput('show_fqdCMDpath'),
                                           selectizeInput("fqd_options", label = "Options",
                                                 multiple = TRUE,
                                                 choices = list("Split Spot" = "split_spot",
@@ -93,20 +97,16 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 options = list(placeholder = 'Click to Specify Options'))
                                    ),
                                    column(4,
-                                          bsAlert('fqdalert'),
-                                          shinyFilesButton("viewFiles", label = "View Files",
-                                                           title = "View Files", class = NULL, multiple = FALSE)
-                                          )
+                                          bsAlert('fqdalert')
+                                         )
                                    )
                                 )
                               )
                 )  
         ),
-       hr(),  
-  
+       hr(), 
        tabsetPanel( id = "tabSet",
-
-          tabPanel( "Search Results", value = "search_results",
+         tabPanel( "Search Results", value = "search_results",
                 hr(),
                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                                  tags$div("Loading...",id="loadmessage")
@@ -121,7 +121,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                   text-align: center;
                                   font-weight: bold;
                                   font-size: 100%;
-                                  color: #FFFFFF ;
+                                  color: #FFFF19;
                                   background-color: #33CCFF;
                                   z-index: 105;
                                   }")

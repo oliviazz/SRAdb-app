@@ -130,6 +130,21 @@ shinyServer(function(input,output,session){
       getOutdirpath()
     })
   })
+  #Link button to directory path ---------------------------------
+  shinyFileChoose("fqdCMDButton", input = input, session = session,
+                 roots=c(wd = '/Users'), filetypes=c('', '.*'))
+  
+  #Display chosen directory --------------------------------------
+  output$show_fqdCMDpath<- renderText({
+    getfqdCMD()
+    })
+  getfqdCMD <- reactive({
+    roots = c(wd='/Users')
+    
+    path <- parseFilePaths(roots , input$fqdCMDButton)
+    return(levels(path$datapath))
+  })
+  
   
 #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
@@ -153,6 +168,7 @@ shinyServer(function(input,output,session){
               splitStyle <- input$fqd_splitStyle
               minSpotId <- input$fqd_min
               maxSpotId <- input$fqd_max
+              fastqDumpCMD <- getfqdCMD()
               outdir <- getOutdirpath()
               if(maxSpotId <1 || minSpotId < 0 ){
                 maxSpotId = -1
@@ -172,21 +188,24 @@ shinyServer(function(input,output,session){
                 }
                 else
                 {  
-                message <- capture.output(fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
+                message <- capture.output(
+                  fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
                           outdir = outdir, splitStyle = splitStyle,
                           split_spot = is.element("split_splot", options),
                           skip_technical = is.element("split_splot", options),
                           origfmt = is.element("origfmt", options),
                           fasta = is.element("fasta", options),
                           dumpbase = is.element("dumpbase ", options),
-                          dumpcs = is.element("dumpcs", options)
-                          )
-                          #Captures what is printed in fastqdump. 
-                )
+                          dumpcs = is.element("dumpcs", options),
+                          fastqDumpCMD = fastqDumpCMD
+                          ))
+                  #closeAlerts(messageBoard = "fqdalert")
+                  #Write function that automatically clears all alerts given an anchor
+                
                   
                   message <- paste(gsub('"', "",message),sep="",collapse="")
                   createAlert(session, "fqdalert", "fqdsuccessAlert",title = "FASTQ Dump completed",
-                              content = message, style = "success")
+                              content = paste(message, 'in', outdir), style = "success")
                 }
               }
             }
