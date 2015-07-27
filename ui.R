@@ -5,6 +5,7 @@ library(shiny)
 library(DT)
 library(shinythemes)
 library(shinyFiles)
+library(shinyBS)
 #======================#
 
 
@@ -19,32 +20,32 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
             column(3,
                 selectInput("dataType", label = h4("View:"), 
                             choices = list("Study" = "study", "Experiment" = "experiment" ,
-                                          "SRA" = "sra","Submission" = "submission",
-                                          "Sample" = "sample", "Run" = "run", 
+                                          "Submission" = "submission",
+                                          "Sample" = "sample", "Run" = "run", "SRA" = "sra",
                                           "SRA Accessions" = "sra_acc", 
                                           "SRA Summary" = "srabrief"), selected = "srabrief"
                 )
             ),
             column(2,
                 hr(),
-                actionButton("searchButton",icon("search", lib = "glyphicon"))
+                actionButton("searchButton",icon("search", lib = "glyphicon"), 
+                                                 class = "btn btn-primary")
             )
           )),
         fluidRow(
             column(12,
                    fluidRow(
-                    
-                     column(3,offset = 1,
+                    column(3,offset = 1,
                             em(h5('Perform on Selected Rows:'))
                             ),
                      column(3, 
                             selectInput("operationType", label = NULL,
                                         choices = list("Choose Operation" = "none",
-                                                       "Download Selected" = "download",
+                                                       "Export Selected" = "download",
                                                        "Get FastQ Dump Files" = "fastqdump",
                                                        "Get FastQ Info" = "fqinfo",
+                                                       "Show Entity-Relation Graph" = "eGraph",
                                                        "Get SRA Info" = "srainfo",
-                                                       "Download" = "download",
                                                        "Start IGV" = "igv"))
                      ),
                      column(2,
@@ -57,7 +58,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                               )
                      ),
                      column(2,
-                            downloadButton("downloadFullSRA", label = " Download Full SRA Table")
+                            downloadButton("downloadFullSRA", label = " Export Full SRA Table")
                      )
                 ),
                 conditionalPanel(condition = "input.operationType == 'fastqdump'",
@@ -71,8 +72,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                    ),
                                    column(2,
                                           conditionalPanel(condition = "!input.fullFile",
-                                                           numericInput('fqd_min', label = "Min SpotID", value = NULL),
-                                                           numericInput('fqd_max', label = "Max SpotID", value = NULL)
+                                                           numericInput('fqd_min', label = "Min SpotID", value = 0),
+                                                           numericInput('fqd_max', label = "Max SpotID", value = 0)
                                           )
                                    ),
                                    column(4,
@@ -82,33 +83,47 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                           verbatimTextOutput('show_outdirpath'),
                                           selectizeInput("fqd_options", label = "Options",
                                                 multiple = TRUE,
-                                                choices = list("Split Spot", "Skip Technical",
-                                                               "Offset", "Original Format",
-                                                               "Fasta", "Dump Base", "Dump cs"),
+                                                choices = list("Split Spot" = "split_spot",
+                                                               "Skip Technical" = 'skip_technical',
+                                                               "Offset" = "offset", 
+                                                               "Original Format" = "origfmt",
+                                                               "Fasta" = "fasta",
+                                                               "Dump Base" = "dumpbase", 
+                                                               "Dump cs" = "dumpcs"),
                                                 options = list(placeholder = 'Click to Specify Options'))
                                    ),
                                    column(4,
-                                          conditionalPanel(condition = "input.viewFiles == 'finished'",
+                                          bsAlert('fqdalert'),
                                           shinyFilesButton("viewFiles", label = "View Files",
                                                            title = "View Files", class = NULL, multiple = FALSE)
                                           )
                                    )
                                 )
                               )
-                )
-            )
+                )  
         ),
        hr(),  
   
        tabsetPanel( id = "tabSet",
-         tabPanel( "Search Results", value = "results",
+
+          tabPanel( "Search Results", value = "search_results",
                 hr(),
-                DT::dataTableOutput('mainTable')),
-         tabPanel("Operation Results", value = "operation",
-                DT::dataTableOutput("operationResults")
-       ))  
+                DT::dataTableOutput('mainTable')
+                ),
+          tabPanel("Operation Results", value = "operation",
+                  column(5, offset = 3,
+                          hr(),
+                         bsAlert("alert")),
+                  conditionalPanel(condition = "input.operationType == 'fqinfo' || 'srainfo'",
+                                   dataTableOutput('operationResultsTable')
+                                    ),
+                  conditionalPanel(condition = "input.operationType == 'eGraph'",
+                                   plotOutput('eGraphPlot')
+                                   )
+                  
+                 )
+       )  
           
-  )
-) 
+  ))
 
   

@@ -1,10 +1,11 @@
-
+-Author: Olivia Zhang 
 ## SRAdb Web Application:
 
 - Functions:
 
-- Search SRA results (text) 
-- Get SRA and FASTQ info for selected runs
-- Perform FASTQ Dump for selected runs 
+- Query Sequence Repository Archive (SRA) 
+- Get info about SRA and FASTQ files of data
+- Perform FASTQ Dump for runs
+- Export Table Results as Excel
 
---Uses packages: SRAdb, shinythemes, shinyFiles, DR
+#Uses packages: SRAdb, shinythemes, shinyFiles, DR
