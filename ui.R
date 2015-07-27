@@ -44,7 +44,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                        "Export Selected" = "download",
                                                        "Get FastQ Dump Files" = "fastqdump",
                                                        "Get FastQ Info" = "fqinfo",
-                                                       "Show Entity-Relation Graph" = "eGraph",
+                                                       "Display Graphic View" = "eGraph",
                                                        "Get SRA Info" = "srainfo",
                                                        "Start IGV" = "igv"))
                      ),
@@ -108,6 +108,24 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
 
           tabPanel( "Search Results", value = "search_results",
                 hr(),
+                conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                 tags$div("Loading...",id="loadmessage")
+                                ,
+                                 tags$style(type="text/css", "
+                                   #loadmessage {
+                                  position: fixed;
+                                  top: 0px;
+                                  left: 0px;
+                                  width: 100%;
+                                  padding: 5px 0px 5px 0px;
+                                  text-align: center;
+                                  font-weight: bold;
+                                  font-size: 100%;
+                                  color: #FFFFFF ;
+                                  background-color: #33CCFF;
+                                  z-index: 105;
+                                  }")
+                                 ),
                 DT::dataTableOutput('mainTable')
                 ),
           tabPanel("Operation Results", value = "operation",
@@ -118,6 +136,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                    dataTableOutput('operationResultsTable')
                                     ),
                   conditionalPanel(condition = "input.operationType == 'eGraph'",
+                                   textOutput('test'),
                                    plotOutput('eGraphPlot')
                                    )
                   

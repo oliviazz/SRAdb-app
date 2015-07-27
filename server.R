@@ -11,6 +11,7 @@ library(shiny)
 library(SRAdb)
 library(DT)
 library(shinyBS)
+library(Rgraphviz)
 sra_dbname <- 'SRAmetadb.sqlite'	
 if(!file.exists('SRAmetadb.sqlite'))
   sqlfile <<- getSRAdbFile()
@@ -29,10 +30,10 @@ shinyServer(function(input,output,session){
   
 #Return Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
-    isolate({
+    
     dataType <- input$dataType
     searchTerms <- input$searchTerms
-    })
+    
     if(dataType == 'sra_acc'){
           n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con, 
                       out_types = 'run', acc_only = TRUE)
@@ -50,6 +51,8 @@ shinyServer(function(input,output,session){
 
 #Create Results Table with Options-------------------------------
   output$mainTable <- DT::renderDataTable({
+    input$reload
+    Sys.sleep(2)
     input$searchButton
     isolate({
       searchTerms = input$searchTerms
@@ -61,28 +64,21 @@ shinyServer(function(input,output,session){
     }, rownames = TRUE,
     escape = FALSE,
     extensions = c('ColVis','ColReorder', 'TableTools'),
-    options = list(dom = 'RC<"clear">lifrStp',
+    options = list(dom = 'TRC<"clear">lifrStp',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    autoWidth = TRUE,
                    colReorder = list(realtime = TRUE),
                    lengthMenu = c(20,50, 100, 200),pageLength = 50,
                    searchHighlight = TRUE,
-                   #tableTools = list(sSwfPath = copySWF()),
+                  tableTools = list(sSwfPath = copySWF("www"), pdf = TRUE,
+                                    aButtons = list('print', 'select_none','select_all')),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
-                     ({'background-color': '#008B8B', 'color': '#fff'});",
+                     ({'background-color': '#6AB4FF', 'color': '#fff'});",
                      "}"
                    )
-#                 columnDefs = list(list(
-#                      targets = 6,
-#                      render = JS(
-#                      "function(data, type, row, meta) {",
-#                      "return type === 'display' && data.length > 6 ?",
-#                      "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
-#                      "}")
-#                    ))
-                   ))
+))
 #%%%%%%%%%%%%%%%%%%%%%% Download Handlers %%%%%%%%%%%%%%%%%%%%%%%%%%
 #Download entire SRA Table---------------------------------------- 
   output$downloadFullSRA<- downloadHandler(
@@ -143,8 +139,7 @@ shinyServer(function(input,output,session){
     if(length(rows_selected) != 0){
       closeAlert(session, alertId = "alert")
       n <- getFullTable()
-      n_selected <<- n[rows_selected,]
-       output$operationMessage <- renderText({"Loading..."})
+      n_selected <- n[rows_selected,]
        switch( input$operationType,
             "srainfo"= updateTabsetPanel(session, "tabSet",
                                          selected = "operation"),
@@ -196,7 +191,6 @@ shinyServer(function(input,output,session){
               }
             }
     )
-       output$operationMessage <- renderText("")
     }
     else{
       createAlert(session, "alert", alertId = "noRows",title = "No Rows Selected",
@@ -223,8 +217,8 @@ shinyServer(function(input,output,session){
     operationType = input$operationType
     selected_rows  = as.integer(input$mainTable_rows_selected)
     if(length(selected_rows) != 0){
-        #n <- getFullTable()
-        #n_selected <<- n[selected_rows,]
+        n <- getFullTable()
+        n_selected <- n[selected_rows,]
         switch( input$operationType,
            "fqinfo" = {
              if(!is.element("run", colnames(n_selected)))
@@ -278,13 +272,28 @@ options = list(dom = 'RC<"clear">lfrtip', # RC<"clear">lifrStp',
 #               ))
           )      
 )
+output$eGraphPlot <- renderPlot( {
+  if(is.element("run", colnames(getFullTable())))
+    plot <- makePlot()
+  else
+    createAlert(session, "alert", "notRunAlert", title = "Wrong Data Type",
+                content = "Please select data of type 'run'", append = FALSE,
+                style = "danger")
+})
 
-output$eGraph <- renderPlot({
-  runcodes <- n_selected[,"run"]
-  acc_table <-  sraConvert( runcodes, sra_con = sra_con )
-  g <- sraGraph_1(acc_table)
-  attrs <- getDefaultAttrs(list(node=list(fillcolor='lightblue', shape='ellipse')))
-  plotPNG(plot(g, attrs=attrs))
+makePlot <- reactive({
+  input$actionButton
+  isolate({
+    n = getFullTable()
+    selected_rows <- input$mainTable_rows_selected
+    n_selected <- n[selected_rows,]
+    runcodes <- n_selected[,"run"]
+    acc_table <-  sraConvert( runcodes, sra_con = sra_con ) #convert runs into full table 
+    g <- sraGraph_1(acc_table)
+    attrs <- getDefaultAttrs(list(node=list(
+      fillcolor='lightblue', shape='ellipse'),edge=list(color="magenta")))
+    plot(g, attrs=attrs)
+  })
 })
 
 })#END SERVER 
@@ -352,7 +361,7 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   return(rs)
 }
 
-sraGraph_1 <- function(search_terms,  acc_table) 
+sraGraph_1 <- function( acc_table) 
 { 
   g <- entityGraph(acc_table)
   return(g)
