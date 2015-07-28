@@ -62,8 +62,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                      )
                 ),
                 conditionalPanel(condition = "input.operationType == 'fastqdump'",
-                                 wellPanel(
-                                   fluidRow(
+                            wellPanel(
+                               fluidRow(
                                    column(2,
                                           radioButtons("fqd_splitStyle", label = "Output Format:",
                                                        choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
@@ -97,52 +97,72 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 options = list(placeholder = 'Click to Specify Options'))
                                    ),
                                    column(4,
-                                          bsAlert('fqdalert')
+                                          bsAlert('fqdalert'),
+                                          actionButton("viewFiles", label = "View Download Directory")
                                          )
-                                   )
-                                )
                               )
-                )  
-        ),
+                          )
+               )
+          )  
+       ),
        hr(), 
        tabsetPanel( id = "tabSet",
          tabPanel( "Search Results", value = "search_results",
                 hr(),
+                column(5, offset = 3,
+                bsAlert("TBalert")
+                ),
                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
-                                 tags$div("Loading...",id="loadmessage")
-                                ,
+                                 tags$div(" . . . . ",id="loadmessage")
+                                 ,
+                                 tags$style(type="text/css", "
+                                            #loadmessage {
+                                            position: fixed;
+                                            top:5px;
+                                            left: 0px;
+                                            width: 100%;
+                                            padding: 5px 0px 5px 0px;
+                                            text-align: center;
+                                            font-weight: bold;
+                                            font-size: 100%;
+                                            color: #FFFFFF ;
+                                            background-color: #33CCFF;
+                                            z-index: 105;
+                                            }")
+                                 ),
+                DT::dataTableOutput('mainTable')
+                ),
+        tabPanel("Operation Results", value = "operation",
+                column(5, offset = 4,
+                          hr(),
+                          bsAlert("alert")),
+                conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                 tags$div(" . . . . ",id="loadmessage")
+                                 ,
                                  tags$style(type="text/css", "
                                    #loadmessage {
                                   position: fixed;
-                                  top: 0px;
+                                  top: 5x;
                                   left: 0px;
                                   width: 100%;
                                   padding: 5px 0px 5px 0px;
                                   text-align: center;
                                   font-weight: bold;
                                   font-size: 100%;
-                                  color: #FFFF19;
+                                  color: #FFFFFF ;
                                   background-color: #33CCFF;
                                   z-index: 105;
                                   }")
-                                 ),
-                DT::dataTableOutput('mainTable')
                 ),
-          tabPanel("Operation Results", value = "operation",
-                  column(5, offset = 3,
-                          hr(),
-                         bsAlert("alert")),
-                  conditionalPanel(condition = "input.operationType == 'fqinfo' || 'srainfo'",
+                          conditionalPanel(condition = "input.operationType == 'fqinfo' || 'srainfo'",
                                    dataTableOutput('operationResultsTable')
                                     ),
-                  conditionalPanel(condition = "input.operationType == 'eGraph'",
+                          conditionalPanel(condition = "input.operationType == 'eGraph'",
                                    textOutput('test'),
                                    plotOutput('eGraphPlot')
                                    )
-                  
                  )
-       )  
-          
+       )       
   ))
 
   

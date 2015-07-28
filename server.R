@@ -1,11 +1,6 @@
 #server.R  SRAdb-app 
 #Olivia Zhang   July 9, 2015 
 
-#..........TO DO:..........................
-# FastQ dump, Diagram from R (?)
-# shift select many 
-#..........................................
-# Imports and Loading 
 #===========================================#
 library(shiny)
 library(SRAdb)
@@ -18,19 +13,24 @@ if(!file.exists('SRAmetadb.sqlite'))
 sra_con<- dbConnect(dbDriver("SQLite"), 
                     sra_dbname) 
 source('~/sra_toolkit/bin/fastqDump_v1.R')
+
 #===========================================#
 
 #Start Shiny Server 
 shinyServer(function(input,output,session){
 
+
 #%%%%%%%%%%%%%%%%%%%%SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
 #Switch panel on search--------------------------------------------
   observeEvent(input$searchButton,
-               updateTabsetPanel(session,"tabSet", selected = "search_results"))
+      updateTabsetPanel(session,"tabSet", selected = "search_results"))
   
 #Return Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
     
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Loading Search Results . . . ', value = 5)
+    on.exit(progress$close())
     dataType <- input$dataType
     searchTerms <- input$searchTerms
     
@@ -56,11 +56,10 @@ shinyServer(function(input,output,session){
     input$searchButton
     isolate({
       searchTerms = input$searchTerms
-      if(searchTerms != "")
-      { 
+      if(searchTerms != ''){
         table  <- getFullTable() 
       }
-      })
+    })
     }, rownames = TRUE,
     escape = FALSE,
     extensions = c('ColVis','ColReorder', 'TableTools'),
@@ -72,6 +71,7 @@ shinyServer(function(input,output,session){
                    searchHighlight = TRUE,
                   tableTools = list(sSwfPath = copySWF("www"), pdf = TRUE,
                                     aButtons = list('print', 'select_none','select_all')),
+                                    #sRowSelect = "os"),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
@@ -101,8 +101,8 @@ shinyServer(function(input,output,session){
     content = function(file){
       n <- getFullTable()
       if(length(input$mainTable_rows_selected) != 0){
-        selected_acc  = input$mainTable_rows_selected #gets row indexes 
-        n <- n[selected_acc,]#
+        selected_acc  = input$mainTable_rows_selected 
+        n <- n[selected_acc,]
       }
       write.csv(n,file)
     }
@@ -130,6 +130,7 @@ shinyServer(function(input,output,session){
       getOutdirpath()
     })
   })
+  
   #Link button to directory path ---------------------------------
   shinyFileChoose("fqdCMDButton", input = input, session = session,
                  roots=c(wd = '/Users'), filetypes=c('', '.*'))
@@ -137,25 +138,49 @@ shinyServer(function(input,output,session){
   #Display chosen directory --------------------------------------
   output$show_fqdCMDpath<- renderText({
     getfqdCMD()
-    })
+  })
+  
   getfqdCMD <- reactive({
     roots = c(wd='/Users')
-    
     path <- parseFilePaths(roots , input$fqdCMDButton)
     return(levels(path$datapath))
   })
-  
-  
+
+observeEvent(input$viewFiles, {
+  outdir = getOutdirpath()
+  system(sprintf("open %s", outdir))
+})  
 #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
 #Trigger Operation when ActionButton Pressed ----------------------------
-  observeEvent(input$actionButton, {
+  observeEvent(input$actionButton,{
     rows_selected <- input$mainTable_rows_selected
-    if(length(rows_selected) != 0){
-      closeAlert(session, alertId = "alert")
+    operation <- input$operationType
+    
+    if(length(rows_selected) == 0){
+      createAlert(session, "alert", alertId = "noRows",title = "No Rows Selected",
+                  content = "Please select at least one row to perform operation on.",append = F)
+      createAlert(session, "fqdalert",alertId = "fqdnoRows" ,title = "No Rows Selected",
+                  content = "Please select at least one row to perform operation on.",
+                  style = "danger", append = F)
+    }
+    else{
+      closeAlert(session, "noRows")
+      closeAlert(session, "fqdnoRows")
       n <- getFullTable()
       n_selected <- n[rows_selected,]
-       switch( input$operationType,
+      
+      if(is.element(operation, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
+          && !is.element('run', colnames(n_selected))){
+            createAlert(session, "alert", "notRun", title = "Error:",
+                    content = "Please select data of type 'run'.",style = "danger",append = FALSE)
+            createAlert(session, "fqdalert", "fqdnotRun", title = "Error:",
+                    content = "Please select data of type 'run'.",style = "danger",append = FALSE)
+      }
+      else
+      {
+          closeOperationAlerts(session)
+          switch( operation,
             "srainfo"= updateTabsetPanel(session, "tabSet",
                                          selected = "operation"),
             "fqinfo" = updateTabsetPanel(session, "tabSet",
@@ -163,155 +188,115 @@ shinyServer(function(input,output,session){
             "eGraph" = updateTabsetPanel(session, "tabSet",
                                          selected = "operation"),
             "fastqdump" = {
-              options <- input$fqd_options
-              print(options)
-              splitStyle <- input$fqd_splitStyle
-              minSpotId <- input$fqd_min
-              maxSpotId <- input$fqd_max
-              fastqDumpCMD <- getfqdCMD()
-              outdir <- getOutdirpath()
-              if(maxSpotId <1 || minSpotId < 0 ){
-                maxSpotId = -1
-                minSpotId = 0
-              }
-            
-              if(!is.element("run", colnames(n_selected))){
-                createAlert(session, "fqdalert", "fqdnotRun", title = "Error:",
-                            content = "Please select data of type 'run'.",style = "danger",append = FALSE)
-              }
-              else{
+                options <- input$fqd_options
+                splitStyle <- input$fqd_splitStyle
+                minSpotId <- input$fqd_min
+                maxSpotId <- input$fqd_max
+                fastqDumpCMD <- getfqdCMD()
+                outdir <- getOutdirpath()
+                if(maxSpotId <1 || minSpotId < 0 ){
+                  maxSpotId = -1
+                  minSpotId = 0
+                }
                 run_code <- n_selected[,"run"]
                 if(length(run_code) > 1){
-                   createAlert(session, "fqdalert", "fqdmultiple", title = "Error:",
-                                content = "Multiple runs are selected. Please choose only 
-                               one to perform Fastq dump.", style = "danger",append = FALSE)
+                    createAlert(session, "fqdalert", "fqdmultiple", title = "Error",
+                              content = "Multiple runs are selected. Please choose only 
+                               one to perform Fastq dump.", style = "danger",append = F)
                 }
-                else
-                {  
-                message <- capture.output(
-                  fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
-                          outdir = outdir, splitStyle = splitStyle,
-                          split_spot = is.element("split_splot", options),
-                          skip_technical = is.element("split_splot", options),
-                          origfmt = is.element("origfmt", options),
-                          fasta = is.element("fasta", options),
-                          dumpbase = is.element("dumpbase ", options),
-                          dumpcs = is.element("dumpcs", options),
-                          fastqDumpCMD = fastqDumpCMD
-                          ))
-                  #closeAlerts(messageBoard = "fqdalert")
-                  #Write function that automatically clears all alerts given an anchor
-                
-                  
-                  message <- paste(gsub('"', "",message),sep="",collapse="")
-                  createAlert(session, "fqdalert", "fqdsuccessAlert",title = "FASTQ Dump completed",
-                              content = paste(message, 'in', outdir), style = "success")
+                else{  
+                    message <- capture.output(
+                    fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
+                        outdir = outdir, splitStyle = splitStyle,
+                        split_spot = is.element("split_splot", options),
+                        skip_technical = is.element("split_splot", options),
+                        origfmt = is.element("origfmt", options),
+                        fasta = is.element("fasta", options),
+                        dumpbase = is.element("dumpbase ", options),
+                        dumpcs = is.element("dumpcs", options),
+                        fastqDumpCMD = fastqDumpCMD
+                    ))
+                    message <- paste(gsub('"', "",message[1], 'and', message[2]),sep="",collapse="")
+                    createAlert(session, "fqdalert",title = "FASTQ Dump completed",
+                          content = paste(message, 'in', outdir), style = "success", append = F)
                 }
-              }
-            }
-    )
+            } 
+        )#end Switch 
+      }
     }
-    else{
-      createAlert(session, "alert", alertId = "noRows",title = "No Rows Selected",
-                  content = "Please select at least one row to perform operation on.")
-      createAlert(session, "fqdalert",alertId = "fqdnoRows" ,title = "No Rows Selected",
-                  content = "Please select at least one row to perform operation on.",
-                  style = "danger")
-    }
+    
     })
 # Operation Message ---------------------------------------------
   observeEvent( input$tabSet == 'operation',{
-          
-            if(( input$operationType == 'none' || input$actionButton == 0)
-               && input$tabSet == 'operation'){
+    if(( input$operationType == 'none' || input$actionButton == 0)
+        && input$tabSet == 'operation'){
               createAlert(session, "alert", alertId = "noAction", title = "No results to display",
-                          content = "No action submitted for selected rows.", append = FALSE)
-              }
-            }
+                          content = "No action submitted for selected rows.", append = F)
+      }
+  }
   ) 
+
 # Results Table for selected operations--------------------------
   output$operationResultsTable <- renderDataTable({
-  input$actionButton #Table not drawn until Action button clicked 
-  isolate({
-    operationType = input$operationType
-    selected_rows  = as.integer(input$mainTable_rows_selected)
-    if(length(selected_rows) != 0){
+    input$reload
+    Sys.sleep(2)
+    input$actionButton #Table not drawn until Action button clicked 
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Calculating Results . . . ', value = 5)
+    on.exit(progress$close())
+    
+    isolate({
+      operationType = input$operationType
+      selected_rows  = as.integer(input$mainTable_rows_selected)
+      if(length(selected_rows) != 0){
         n <- getFullTable()
         n_selected <- n[selected_rows,]
+        run_codes <- as.vector(n_selected[,"run"])
         switch( input$operationType,
            "fqinfo" = {
-             if(!is.element("run", colnames(n_selected)))
-               { createAlert(session, "alert", "notRunAlert", title = "Wrong Data Type",
-                             content = "Please select data of type 'run'", append = FALSE,
-                             style = "danger")
-             }
-             else{
-               run_codes <- as.vector(n_selected[,"run"])
                fqinfo <- getFASTQinfo(run_codes)
                fqinfo$ftp <- createLink(fqinfo$ftp)
                newBottom <- fqinfo[,1:5]  #rearrange columns to look better
                newTop <- fqinfo[,6:11]
                fqinfo <- cbind(newTop, newBottom)
-             }
            },
            "srainfo" = {
-             if(!is.element("run", colnames(n_selected)))
-             { createAlert(session, "alert", "notRunAlert", title = "Wrong Data Type",
-                           content = "Please select data of type 'run'", append = FALSE,
-                           style = "danger")
+               srainfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
+               srainfo$ftp <- createLink(srainfo$ftp)
+               srainfo
              }
-             else{
-               run_codes <- as.vector(n_selected[,"run"])
-               fqinfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
-               fqinfo$ftp <- createLink(fqinfo$ftp)
-               fqinfo
-             }
-           }
-        )
-    }
-  })
-},
-escape = FALSE,
-extensions = c('ColVis','ColReorder', 'TableTools'),
-options = list(dom = 'RC<"clear">lfrtip', # RC<"clear">lifrStp',
+        )}
+    })
+  },
+  escape = FALSE,
+  extensions = c('ColVis','ColReorder', 'TableTools'),
+  options = list(dom = 'RC<"clear">lfrtip', # RC<"clear">lifrStp',
                scrollX = TRUE, scrollCollapse = TRUE,
                colReorder = list(realtime = TRUE),
                autoWidth = TRUE,
-               
                lengthMenu = c(15, 50, 100),pageLength = 15,
                searchHighlight = TRUE,
                tableTools = list(sSwfPath = copySWF())
-#                columnDefs = list(list(
-#                  targets = 1:7,
-#                 render = JS(
-#                  "function(data, type, row, meta) {",
-#                  "return type === 'display' && data.length > 6 ?",
-#                  "'<span title=\"' + data + '\">' + data.substr(0, 6) + '...</span>' : data;",
-#                  "}")
-#               ))
           )      
-)
+  )
+
 output$eGraphPlot <- renderPlot( {
-  if(is.element("run", colnames(getFullTable())))
     plot <- makePlot()
-  else
-    createAlert(session, "alert", "notRunAlert", title = "Wrong Data Type",
-                content = "Please select data of type 'run'", append = FALSE,
-                style = "danger")
 })
 
 makePlot <- reactive({
   input$actionButton
   isolate({
-    n = getFullTable()
-    selected_rows <- input$mainTable_rows_selected
-    n_selected <- n[selected_rows,]
-    runcodes <- n_selected[,"run"]
-    acc_table <-  sraConvert( runcodes, sra_con = sra_con ) #convert runs into full table 
-    g <- sraGraph_1(acc_table)
-    attrs <- getDefaultAttrs(list(node=list(
-      fillcolor='lightblue', shape='ellipse'),edge=list(color="magenta")))
-    plot(g, attrs=attrs)
+      n = getFullTable()
+      selected_rows <- input$mainTable_rows_selected
+      n_selected <- n[selected_rows,]
+      runcodes <- as.vector(n_selected[,"run"])
+      print(runcodes)
+      acc_table <-  sraConvert( runcodes, sra_con = sra_con ) #convert runs into full table 
+      g <- sraGraph_1(acc_table)
+      attrs <- getDefaultAttrs(list(node=list(
+      fillcolor='lightblue', shape='ellipse'),edge=list(color="darkblue")))
+      plot(g, attrs=attrs)
   })
 })
 
@@ -320,11 +305,23 @@ makePlot <- reactive({
 ######################################################################################################
 ##################################### OTHER FUNCTUONS ################################################
 ######################################################################################################
-
-# Clickable HTML Link Given URL(val)------------------------------
+# Close Alerts 
+closeOperationAlerts <- function(session){
+  closeAlert(session, "fqdnotrun")
+  closeAlert(session, "notrun")
+  closeAlert(session, "noRows")
+  closeAlert(session, "fqdnoRows")
+}
+# Clickable HTML Link Given URL(val)-----------------------------
 createLink <- function(val) {
   sprintf('<a href="%s" target="_blank" 
           class="btn btn-link"> %s </a>',val,val)
+}
+# Disable Action button------------------------------------------
+disableActionButton <- function(id,session) {
+  session$sendCustomMessage(type="jsCode",
+                            list(code= paste("$('#",id,"').prop('disabled',true)"
+                                             ,sep="")))
 }
 
 # Modified getSRA------------------------------------------------
