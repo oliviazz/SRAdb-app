@@ -8,9 +8,8 @@ library(shinyFiles)
 library(shinyBS)
 #======================#
 
-
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
-  titlePanel("SRAdb Web Application"),
+  titlePanel(h5(em(("SRAdb Web Application")))),
     wellPanel(
         fluidRow(
             column(4,
@@ -21,9 +20,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                 selectInput("dataType", label = h4("View:"), 
                             choices = list("Study" = "study", "Experiment" = "experiment" ,
                                           "Submission" = "submission",
-                                          "Sample" = "sample", "Run" = "run", "SRA" = "sra",
-                                          "SRA Accessions" = "sra_acc", 
-                                          "SRA Summary" = "srabrief"), selected = "srabrief"
+                                          "Sample" = "sample", "Run" = "run", 
+                                          "SRA Summary" = "srabrief",
+                                          "SRA Accession Codes" = "sra_acc", 
+                                          "Full SRA" = "sra"), selected = "srabrief"
                 )
             ),
             column(2,
@@ -42,11 +42,11 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                             selectInput("operationType", label = NULL,
                                         choices = list("Choose Operation" = "none",
                                                        "Export Selected" = "download",
-                                                       "Get FastQ Dump Files" = "fastqdump",
+                                                       "FastQ Dump File" = "fastqdump",
                                                        "Get FastQ Info" = "fqinfo",
-                                                       "Display Graphic View" = "eGraph",
                                                        "Get SRA Info" = "srainfo",
-                                                       "Start IGV" = "igv"))
+                                                       "Display Graphic View" = "eGraph"
+                                                       ))
                      ),
                      column(2,
                             conditionalPanel( condition = "input.operationType != 'download'",
@@ -72,8 +72,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                    ),
                                    column(2,
                                           conditionalPanel(condition = "!input.fullFile",
-                                                           numericInput('fqd_min', label = "Min SpotID", value = 0),
-                                                           numericInput('fqd_max', label = "Max SpotID", value = 0)
+                                                           numericInput('fqd_min', label = "Min SpotID", value = NULL),
+                                                           numericInput('fqd_max', label = "Max SpotID", value = NULL)
                                           )
                                    ),
                                    column(4,
@@ -107,6 +107,20 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
        ),
        hr(), 
        tabsetPanel( id = "tabSet",
+         tabPanel( "Home", value = "home",
+                   br(),
+                   h2("SRAdb Web Application", align = "center"),
+                   h4("Query the NCBI Sequence Read Archive", align = "center"),
+                   br(),
+                   fluidRow(
+                     h4( a("Download SRAdb", href="https://www.bioconductor.org/packages/release/bioc/html/SRAdb.html"), align = "center"),
+                     h4( a("Download SRA toolkit", href="http://www.ncbi.nlm.nih.gov/Traces/sra/?view=software"), align = "center"),
+                     h4( a("SRA Homepage", href="http://www.ncbi.nlm.nih.gov/Traces/sra/"), align = "center"),
+                     h4( "Help", align = "center")     
+                     
+                   )
+                   
+         ),
          tabPanel( "Search Results", value = "search_results",
                 hr(),
                 column(5, offset = 3,
@@ -118,7 +132,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                  tags$style(type="text/css", "
                                             #loadmessage {
                                             position: fixed;
-                                            top:5px;
+                                            top:6px;
                                             left: 0px;
                                             width: 100%;
                                             padding: 5px 0px 5px 0px;
@@ -136,13 +150,14 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                 column(5, offset = 4,
                           hr(),
                           bsAlert("alert")),
-                conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                conditionalPanel(
+                  condition="$('html').hasClass('shiny-busy')",
                                  tags$div(" . . . . ",id="loadmessage")
                                  ,
                                  tags$style(type="text/css", "
                                    #loadmessage {
                                   position: fixed;
-                                  top: 5x;
+                                  top: 6x;
                                   left: 0px;
                                   width: 100%;
                                   padding: 5px 0px 5px 0px;
@@ -158,7 +173,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                    dataTableOutput('operationResultsTable')
                                     ),
                           conditionalPanel(condition = "input.operationType == 'eGraph'",
-                                   textOutput('test'),
+                                   
                                    plotOutput('eGraphPlot')
                                    )
                  )
