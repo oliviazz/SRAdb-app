@@ -23,29 +23,28 @@ shinyServer(function(input,output,session){
   
 #%%%%%%%%%%%%%%%%%%%%SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
 #Switch panel on search--------------------------------------------
+  createAlert(session, "TBalert", alertId = "NoSearch", title = "No results to display",
+              content = "Please enter search terms to display results", append = F)
+  createAlert(session, "alert", alertId = "noAction", title = "No results to display",
+              content = "Please select rows and select operation to display results.", append = F)
+  
   observeEvent(input$searchButton,{
       updateTabsetPanel(session,"tabSet", selected = "search_results")
      if(input$searchTerms != '')
        closeAlert(session, "NoSearch")})
   
-  observeEvent( input$tabSet, {
-    if(( input$operationType == '' || input$actionButton == 0 || length(input$mainTable_rows_selected) == 0)
-       || input$searchButton == 0){
-      createAlert(session, "alert", alertId = "noAction", title = "No results to display",
-                  content = "Please select rows and select operation to display results.", append = F)
-     
+  observeEvent( input$actionButton, {
+    if(input$operationType != '' && length(input$mainTable_rows_selected) != 0){
+      closeAlert(session, alertId = "TBnoAction")
+      closeAlert(session, alertId = "noAction")
     }
-    else{
-    closeAlert(session, "noAction")
-  }}
-  ) 
-#   observeEvent( input$actionButton, {
-#     if(input$operationType == '' ||length(input$mainTable_rows_selected) == 0)
-#       createAlert(session, alertId = "noGo", anchorId = "TBalert", content = "Please select rows and select operation to display results.")
-#     else
-#       closeAlert("noGo", session)
-#   })
-
+    else
+      createAlert(session, "TBalert", alertId = "TBnoAction", title = "No results to display",
+                  content = "Please select rows and select operation to display results.", append = F,
+                  style = "danger")
+  })
+  
+  
 #Search Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
     progress <- shiny::Progress$new()
@@ -79,6 +78,7 @@ if( ! file.exists("www") ) {
     escape = FALSE,
     class = 'order-column nowrap',
     extensions = c('ColVis','ColReorder', 'TableTools'),
+   
     #selection = list(mode = 'multiple', selected = as.character(selected_rows)),
     options = list(dom = 'CTRf<"clear">lirSpt',
                    scrollX = TRUE, scrollCollapse = TRUE,
@@ -90,8 +90,9 @@ if( ! file.exists("www") ) {
                    server = FALSE,
                    stateSave = TRUE,
                    tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
+                                     sRowSelect = "os",
                                     aButtons = list(
-                                                    'print', 'select_none','select_all'
+                                                    'print', 'select_none'
                                                    )),
                    columnDefs = list(list(width = '200px', targets = c(1,2,3,4,5) )),
                    initComplete = JS(
@@ -120,7 +121,7 @@ if( ! file.exists("www") ) {
     else{
       #if there are selected rows: close any possible previous noRows alerts 
       n <- getFullTable()
-      n_selected <<- n[selected_rows,]
+      n_selected <- n[selected_rows,]
       if(is.element(operation, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
          && !is.element('run', colnames(n_selected))){
         createAlert(session, "alert", "notRun", title = "Error:",
@@ -201,6 +202,10 @@ if( ! file.exists("www") ) {
   # Operation Results Table-------------------------
   output$operationResultsTable <- renderDataTable({
     input$actionButton #Table not drawn until Action button clicked 
+    input$reload
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Loading Search Results . . . ', value = 5)
+    on.exit(progress$close())
     isolate({
       operationType = input$operationType
       selected_rows  <<- as.integer(input$mainTable_rows_selected)
@@ -349,8 +354,6 @@ makePlot <- reactive({
   })
 })
   
-createAlert(anchorId = "TBalert", alertId = "NoSearch", title = "No Search Terms Entered",
-              content = "Please enter search terms to display results", session= session)
 
 output$selectHelp <- renderText({
     return('Select Rows [?]')
@@ -361,9 +364,8 @@ addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row
 output$smartSearch <- renderText({
     return('Advanced Search [?]')
   })
-addPopover(session, "smartSearch", title = NULL,content = paste0("Smart Search--------------------- 
-                                                                   OR, * , Column = set value, 
-                                                                   Double quotes exact phrase search"),
+addPopover(session, "smartSearch", title = NULL,content = HTML(paste("<b>Smart Search Options: </b>", "-'OR' to search for two topics","-'Column = value' for all results with given column value",
+                                                                     "-Double quotes around phrase to search exact phrase ", "-'term*' for results beginning with 'term'", sep = '<br/>')),
              trigger = 'click')  
   
  

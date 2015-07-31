@@ -12,6 +12,23 @@ for( Lib in Libs ) {
 #======================#
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
   titlePanel(h6(em(strong("SRAdb Web Application")))),
+  conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                   tags$div(" . . . . ",id="loadmessage"),
+                   tags$style(type="text/css", "
+                              #loadmessage {
+                              position: fixed;
+                              top:6px;
+                              left: 0px;
+                              width: 100%;
+                              padding: 5px 0px 5px 0px;
+                              text-align: center;
+                              font-weight: bold;
+                              font-size: 100%;
+                              color: #FFFFFF ;
+                              background-color: #ffff00 ;
+                              z-index: 105;
+                              }")
+                ),
     wellPanel(
         fluidRow(
             column(4,
@@ -56,16 +73,16 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                    
          ),
          tabPanel( "Search Results", value = "search_results",
-                column(5, offset = 4,
-                       br(),
-                bsAlert("TBalert")
-                ),
+                   br(),
+                   column(5, offset = 4,
+                          bsAlert("TBalert")
+                   ),
                 conditionalPanel( "input.searchTerms != '' && input.searchButton > 0",
                                   wellPanel(
                                   fluidRow(
                                     column(12,
                                            fluidRow(
-                                             column(2, offset = 1, em(h6(textOutput('selectHelp')))),
+                                             column(2, offset = 1, (h6(textOutput('selectHelp')))),
                                             column(4,
                                                     selectizeInput("operationType", label = NULL,
                                                                    choices = list("Export Selected" = "download",
@@ -135,26 +152,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                             )
                                            )
                                     )  
-                                  ))),
+                                  )
+                                  
+                                  )),
+               
                 br(),
-                bsAlert("TBalert"),
-                conditionalPanel(condition="$('html').hasClass('shiny-busy')",
-                                 tags$div(" . . . . ",id="loadmessage"),
-                                 tags$style(type="text/css", "
-                                            #loadmessage {
-                                            position: fixed;
-                                            top:6px;
-                                            left: 0px;
-                                            width: 100%;
-                                            padding: 5px 0px 5px 0px;
-                                            text-align: center;
-                                            font-weight: bold;
-                                            font-size: 100%;
-                                            color: #FFFFFF ;
-                                            background-color: #ffff00 ;
-                                            z-index: 105;
-                                            }")
-                ),
+                
                 DT::dataTableOutput('mainTable')
                 ),
         tabPanel("Operation Results", value = "operation",
