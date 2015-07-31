@@ -20,11 +20,14 @@ source('copyfastqdump_v1.R')
 #Start Shiny Server 
 shinyServer(function(input,output,session){
 
-
+  createAlert(anchorId = "TBalert", alertId = "NoSearch", title = "No Search Terms Entered",
+              content = "Please enter search terms to display results", session= session)
 #%%%%%%%%%%%%%%%%%%%%SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
 #Switch panel on search--------------------------------------------
-  observeEvent(input$searchButton,
-      updateTabsetPanel(session,"tabSet", selected = "search_results"))
+  observeEvent(input$searchButton,{
+      updateTabsetPanel(session,"tabSet", selected = "search_results")
+     if(input$searchTerms != '')
+       closeAlert(session, "NoSearch")})
   
 #Search Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
@@ -35,20 +38,9 @@ shinyServer(function(input,output,session){
     isolate({
     dataType <- input$dataType
     searchTerms <- input$searchTerms
-    
-    if(dataType == 'sra_acc'){
-          n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con, 
-                      out_types = 'run', acc_only = TRUE)
-          run_codes <- n[,"run"]
-          n <- listSRAfile( as.vector(run_codes), sra_con, 
-                            fileType = 'sra')
-          n$ftp <- createLink(n$ftp, n$ftp) #links to download SRA 
-          return(n)
-         }
-     else{
-         n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
+    n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
-     }
+  
   })
   })
   
@@ -57,7 +49,6 @@ shinyServer(function(input,output,session){
     input$reload
     input$searchButton
     isolate({
-      #print(selected_rows)
       searchTerms = input$searchTerms
       if(searchTerms != ''){
         table  <- getFullTable() 
@@ -65,41 +56,58 @@ shinyServer(function(input,output,session){
     })
     }, rownames = TRUE,
     escape = FALSE,
+    class = 'order-column nowrap',
     extensions = c('ColVis','ColReorder', 'TableTools'),
     #selection = list(mode = 'multiple', selected = as.character(selected_rows)),
     options = list(dom = 'TRC<"clear">lifrStp',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    
                    autoWidth = TRUE,
+                   orderClasses = TRUE,
                    colReorder = list(realtime = TRUE),
                    lengthMenu = c(20,50, 100, 200),pageLength = 50,
                    searchHighlight = TRUE,
                    server = FALSE,
-                   tableTools = list(sSwfPath = copySWF("www"), pdf = TRUE,
-                                    aButtons = list('print', 'select_none','select_all')),
+                   stateSave = TRUE,
+                   tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
+#                                   "aButtons" = list("print", "select_none",list("sExtends" = "select_all",
+#                                                                                 "oSelectorOpts"=list("page"="all"
+#                                                                                                     ),
+#                                                                                 "sButtonText" = "Select All"
+#                                                                                 #"fnClick" = 
+#                                                                                   #JS(" function ( nButton, oConfig, oFlash ) {
+#                                                                                     #")))),
+                                    aButtons = list(
+                                                    'print', 'select_none','select_all'
+                                                   )),
+                   columnDefs = list(list(width = '200px', targets = c(1,2,3,4,5) )),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
                      ({'background-color': '#6AB4FF', 'color': '#fff'});",
                      "}"
                    )
-                   )
+    )
                    
 )
-
+  observeEvent(input$selectAll,
+               {selected_rows <- 1:nrow(getFullTable())})
   #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
   #Trigger Operation when ActionButton Pressed ----------------------------
   observeEvent(input$actionButton,{
     selected_rows <<-as.integer(input$mainTable_rows_selected)
+#     if(input$selectAll >= input$actionButton)
+#       selected_rows <- 1:nrow(getFullTable())
     operation <- input$operationType
-    
-    if(length(selected_rows) == 0 && operation != 'igv'){
+    print(selected_rows)
+    if(length(selected_rows) == 0 ){
       createAlert(session, "alert", alertId = "noRows",title = "No Rows Selected",
                   content = "Please select at least one row to perform operation on.",append = F)
       createAlert(session, "fqdalert",alertId = "fqdnoRows" ,title = "No Rows Selected",
                   content = "Please select at least one row to perform operation on.",
                   style = "danger", append = F)
+      return()
     }
     else{
       #if there are selected rows: close any possible previous noRows alerts 
@@ -125,6 +133,8 @@ shinyServer(function(input,output,session){
                 "fqinfo" = updateTabsetPanel(session, "tabSet",
                                              selected = "operation"),
                 "eGraph" = updateTabsetPanel(session, "tabSet",
+                                             selected = "operation"),
+                "related_acc" = updateTabsetPanel(session, "tabSet",
                                              selected = "operation"),
                 "fastqdump" = {
                   options <- input$fqd_options
@@ -202,27 +212,43 @@ shinyServer(function(input,output,session){
                   fqinfo$fasp <- createLink(fqinfo$fasp,paste("Download", fqinfo$run, "fastq file"))
                   newBottom <- fqinfo[,1:5]  #rearrange columns to look better
                   newTop <- fqinfo[,6:11]
-                  fqinfo <- cbind(newTop, newBottom)
+                  outputTable <- cbind(newTop, newBottom)
                 },
                 "srainfo" = {
                   srainfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
                   srainfo$ftp <- createLink(srainfo$ftp, paste("Download SRA for ",srainfo$run))
-                  srainfo
+                  outputTable <- srainfo
+                },
+                "related_acc" = {
+                  acc_possible <- c("run", "study", "experiment", "sample", "submission" )
+                  yesAcc = intersect(acc_possible,colnames(n_selected))
+                  if('run'%in%colnames(n_selected))
+                    codeVector = n_selected[,"run"]
+                  else
+                    codeVector = n_selected[,yessAcc[1]]
+                  #sraConvert(codeVector = in_acc, sra_con = sra_con)
+                  n <- listSRAfile( codeVector, sra_con, 
+                                    fileType = 'sra')
+                  n$ftp <- createLink(n$ftp, "Download SRA") #links to download SRA 
+                  outputTable <- n
+                  
                 }
         )}
     })
   },
   escape = FALSE,
+  class = 'nowrap order-column',
   extensions = c('ColVis','ColReorder', 'TableTools'),
   options = list(dom = 'RC<"clear">lfrtip', # RC<"clear">lifrStp',
                  scrollX = TRUE, scrollCollapse = TRUE,
                  colReorder = list(realtime = TRUE),
-                 
+                 saveState = TRUE,
                  autoWidth = TRUE,
-                 
+                 orderClasses = TRUE,
                  lengthMenu = c(15, 50, 100),pageLength = 15,
                  searchHighlight = TRUE,
                  tableTools = list(sSwfPath = copySWF())
+                 #columnDefs = list(list(width = '450px', targets = c(1) ))
   )      
   )
   # Operation Message ---------------------------------------------
@@ -254,11 +280,9 @@ shinyServer(function(input,output,session){
       a <- gsub(" ","",a) 
     },
     content = function(file){
-      n <- getFullTable()
-      if(length(input$mainTable_rows_selected) != 0){
-        selected_acc  = input$mainTable_rows_selected 
-        n <- n[selected_acc,]
-      }
+      n<- getFullTable()
+      selected_acc  = input$mainTable_rows_selected 
+      n <- n[selected_acc,]
       write.csv(n,file)
     }
   )
@@ -339,6 +363,12 @@ makePlot <- reactive({
       plot(g, attrs=attrs)
   })
 })
+  
+output$searchPanel <- renderUI({
+    #     list(
+    # 
+    #     )
+    #   })
 })#END SERVER 
 
 ######################################################################################################

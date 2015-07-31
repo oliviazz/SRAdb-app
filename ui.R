@@ -9,20 +9,19 @@ library(shinyBS)
 #======================#
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
-  titlePanel(h5(em(("SRAdb Web Application")))),
+  titlePanel(h6(em(("SRAdb Web Application")))),
     wellPanel(
         fluidRow(
             column(4,
-                textInput("searchTerms", label = h4("Search Terms:"), 
+                textInput("searchTerms", label = h5("Search Terms:"), 
                           value = "")
             ),
             column(3,
-                selectInput("dataType", label = h4("View:"), 
-                            choices = list("Study" = "study", "Experiment" = "experiment" ,
+                selectInput("dataType", label = h5("View:"), 
+                            choices = list("SRA Overview" = "srabrief",
+                                          "Study" = "study", "Experiment" = "experiment" ,
                                           "Submission" = "submission",
                                           "Sample" = "sample", "Run" = "run", 
-                                          "SRA Summary" = "srabrief",
-                                          "SRA Accession Codes" = "sra_acc", 
                                           "Full SRA" = "sra"), selected = "srabrief"
                 )
             ),
@@ -32,82 +31,11 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                  class = "btn btn-primary")
             )
           )),
-        fluidRow(
-            column(12,
-                   fluidRow(
-                    column(3,offset = 1,
-                            em(h5('Perform on Selected Rows:'))
-                            ),
-                     column(3, 
-                            selectInput("operationType", label = NULL,
-                                        choices = list("Choose Operation" = "none",
-                                                       "Export Selected" = "download",
-                                                       "FastQ Dump File" = "fastqdump",
-                                                       "Get FastQ Info" = "fqinfo",
-                                                       "Get SRA Info" = "srainfo",
-                                                       "Display Graphic View" = "eGraph"
-                                                       ))
-                     ),
-                     column(2,
-                            conditionalPanel( condition = "input.operationType != 'download'",
-                              actionButton("actionButton", label = 'Submit', class = "btn btn-primary" )
-                            ), 
-                            #Change button to download button if operation = download
-                            conditionalPanel( condition = "input.operationType == 'download'",
-                              downloadButton("downloadSelected", label = 'Submit', class = "btn btn-primary")              
-                              )
-                     ),
-                     column(2,
-                            downloadButton("downloadFullSRA", label = " Export Full SRA Table")
-                     )
-                ),
-                conditionalPanel(condition = "input.operationType == 'fastqdump'",
-                            wellPanel(
-                               fluidRow(
-                                   column(2,
-                                          radioButtons("fqd_splitStyle", label = "Output Format:",
-                                                       choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                                                       selected = "gzip"),
-                                          checkboxInput("fullFile", label = strong("Get Entire File"), value = TRUE)
-                                   ),
-                                   column(2,
-                                          conditionalPanel(condition = "!input.fullFile",
-                                                           numericInput('fqd_min', label = "Min SpotID", value = NULL),
-                                                           numericInput('fqd_max', label = "Max SpotID", value = NULL)
-                                          )
-                                   ),
-                                   column(4,
-                                          shinyDirButton("outdirButton",title = "Choose Download Directory for Fastq Files",
-                                                         label = "Choose Download Location:",
-                                                         class = "btn btn-link"),
-                                          verbatimTextOutput('show_outdirpath'),
-                                          shinyFilesButton("fqdCMDButton",title = "Choose Location of FastQ-dump command from SRA toolkit",
-                                                         label = "Choose FastQ-dump command location:",
-                                                         class = "btn btn-link", multiple = T),
-                                          verbatimTextOutput('show_fqdCMDpath'),
-                                          selectizeInput("fqd_options", label = "Options",
-                                                multiple = TRUE,
-                                                choices = list("Split Spot" = "split_spot",
-                                                               "Skip Technical" = 'skip_technical',
-                                                               "Offset" = "offset", 
-                                                               "Original Format" = "origfmt",
-                                                               "Fasta" = "fasta",
-                                                               "Dump Base" = "dumpbase", 
-                                                               "Dump cs" = "dumpcs"),
-                                                options = list(placeholder = 'Click to Specify Options'))
-                                   ),
-                                   column(4,
-                                          bsAlert('fqdalert'),
-                                          actionButton("viewFiles", label = "View Download Directory")
-                                         )
-                              )
-                          )
-               )
-          )  
-       ),
-       hr(), 
+        
+  br(),
        tabsetPanel( id = "tabSet",
          tabPanel( "Home", value = "home",
+                   wellPanel(
                    br(),
                    h2("SRAdb Web Application", align = "center"),
                    h4("Query the NCBI Sequence Read Archive", align = "center"),
@@ -119,13 +47,90 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                      h4( "Help", align = "center")     
                      
                    )
+                   )
                    
          ),
          tabPanel( "Search Results", value = "search_results",
-                hr(),
-                column(5, offset = 3,
+                column(5, offset = 4,
+                       br(),
                 bsAlert("TBalert")
                 ),
+                conditionalPanel( "input.searchTerms != '' && input.searchButton > 0",
+                  fluidRow(
+                    column(12,
+                         fluidRow(
+                           
+                           column(4, offset = 3,
+                                  selectizeInput("operationType", label = NULL,
+                                                 choices = list("Export Selected" = "download",
+                                                                "Get Related Accession Codes" = "related_acc",
+                                                                "Get FastQ Info" = "fqinfo",
+                                                                "Get SRA Info" = "srainfo",
+                                                                "FastQ Dump File" = "fastqdump",
+                                                                "Display ERD" = "eGraph"
+                                                 ),
+                                                 options = list(
+                                                   placeholder = 'Perform on Selected Rows:   ',
+                                                   onInitialize = I('function() { this.setValue(""); }')
+                                                 ))
+                           ),
+                           column(2,
+                                  conditionalPanel( condition = "input.operationType != 'download'",
+                                                    actionButton("actionButton", label = 'Submit', class = "btn btn-primary" )
+                                  ), 
+                                  conditionalPanel( condition = "input.operationType == 'download'",
+                                                    downloadButton("downloadSelected", label = 'Submit', class = "btn btn-primary")              
+                                  )
+                           ),
+                           column(2,
+                                  downloadButton("downloadFullSRA", label = " Export Full SRA Table")
+                           )
+                         ),
+                         conditionalPanel(condition = "input.operationType == 'fastqdump'",
+                                          wellPanel(
+                                            fluidRow(
+                                              column(2,
+                                                     radioButtons("fqd_splitStyle", label = "Output Format:",
+                                                                  choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
+                                                                  selected = "gzip"),
+                                                     checkboxInput("fullFile", label = strong("Get Entire File"), value = TRUE)
+                                              ),
+                                              column(2,
+                                                     conditionalPanel(condition = "!input.fullFile",
+                                                                      numericInput('fqd_min', label = "Min SpotID", value = NULL),
+                                                                      numericInput('fqd_max', label = "Max SpotID", value = NULL)
+                                                     )
+                                              ),
+                                              column(4,
+                                                     shinyDirButton("outdirButton",title = "Choose Download Directory for Fastq Files",
+                                                                    label = "Choose Download Location:",
+                                                                    class = "btn btn-link"),
+                                                     verbatimTextOutput('show_outdirpath'),
+                                                     shinyFilesButton("fqdCMDButton",title = "Choose Location of FastQ-dump command from SRA toolkit",
+                                                                      label = "Choose FastQ-dump command location:",
+                                                                      class = "btn btn-link", multiple = T),
+                                                     verbatimTextOutput('show_fqdCMDpath'),
+                                                     selectizeInput("fqd_options", label = "Options",
+                                                                    multiple = TRUE,
+                                                                    choices = list("Split Spot" = "split_spot",
+                                                                                   "Skip Technical" = 'skip_technical',
+                                                                                   "Offset" = "offset", 
+                                                                                   "Original Format" = "origfmt",
+                                                                                   "Fasta" = "fasta",
+                                                                                   "Dump Base" = "dumpbase", 
+                                                                                   "Dump cs" = "dumpcs"),
+                                                                    options = list(placeholder = 'Click to Specify Options'))
+                                              ),
+                                              column(4,
+                                                     bsAlert('fqdalert'),
+                                                     actionButton("viewFiles", label = "View Download Directory")
+                                              )
+                                            )
+                                          )
+                         )
+                  )  
+                )),
+                br(),
                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
                                  tags$div(" . . . . ",id="loadmessage")
                                  ,
@@ -140,7 +145,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                             font-weight: bold;
                                             font-size: 100%;
                                             color: #FFFFFF ;
-                                            background-color: #33CCFF;
+                                            background-color: #ffff00 ;
                                             z-index: 105;
                                             }")
                                  ),
@@ -148,7 +153,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                 ),
         tabPanel("Operation Results", value = "operation",
                 column(5, offset = 4,
-                          hr(),
+                          br(),
                           bsAlert("alert")),
                 conditionalPanel(
                   condition="$('html').hasClass('shiny-busy')",
@@ -165,7 +170,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                   font-weight: bold;
                                   font-size: 100%;
                                   color: #FFFFFF ;
-                                  background-color: #33CCFF;
+                                  background-color: #ffff00 ;
                                   z-index: 105;
                                   }")
                 ),
