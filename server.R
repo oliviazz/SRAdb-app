@@ -1,27 +1,26 @@
 #server.R  SRAdb-app 
 #Olivia Zhang   July 9, 2015 
 #===========================================#
-
-library(shiny)
-library(SRAdb)
-library(DT)
-library(shinyBS)
-library(Rgraphviz)
+Libs = c('shiny', 'DT', 'SRAdb', 'shinyBS', 'Rgraphviz', 'shinyFiles')
+for( Lib in Libs ) {
+  if( !require( Lib, character.only = T ) ) {
+    source("http://bioconductor.org/biocLite.R")
+    biocLite( Lib, type='source', lib = .libPaths()[2] )
+    library( Lib, character.only = T )
+  }
+}
 sra_dbname <- 'SRAmetadb.sqlite'	
 if(!file.exists('SRAmetadb.sqlite'))
   sqlfile <<- getSRAdbFile()
 sra_con<- dbConnect(dbDriver("SQLite"), 
                     sra_dbname)
 source('copyfastqdump_v1.R')
-
-
 #===========================================#
 
 #Start Shiny Server 
 shinyServer(function(input,output,session){
 
-  createAlert(anchorId = "TBalert", alertId = "NoSearch", title = "No Search Terms Entered",
-              content = "Please enter search terms to display results", session= session)
+  
 #%%%%%%%%%%%%%%%%%%%%SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
 #Switch panel on search--------------------------------------------
   observeEvent(input$searchButton,{
@@ -29,6 +28,24 @@ shinyServer(function(input,output,session){
      if(input$searchTerms != '')
        closeAlert(session, "NoSearch")})
   
+  observeEvent( input$tabSet, {
+    if(( input$operationType == '' || input$actionButton == 0 || length(input$mainTable_rows_selected) == 0)
+       || input$searchButton == 0){
+      createAlert(session, "alert", alertId = "noAction", title = "No results to display",
+                  content = "Please select rows and select operation to display results.", append = F)
+     
+    }
+    else{
+    closeAlert(session, "noAction")
+  }}
+  ) 
+#   observeEvent( input$actionButton, {
+#     if(input$operationType == '' ||length(input$mainTable_rows_selected) == 0)
+#       createAlert(session, alertId = "noGo", anchorId = "TBalert", content = "Please select rows and select operation to display results.")
+#     else
+#       closeAlert("noGo", session)
+#   })
+
 #Search Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
     progress <- shiny::Progress$new()
@@ -40,11 +57,15 @@ shinyServer(function(input,output,session){
     searchTerms <- input$searchTerms
     n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
-  
   })
   })
   
-#Results Table with Options-------------------------------
+#Make dir -------------------------------------------------------  
+if( ! file.exists("www") ) {
+    dir.create( "www" )
+  }
+  
+#Results Table with Options--------------------------------------
   output$mainTable <- DT::renderDataTable({
     input$reload
     input$searchButton
@@ -59,9 +80,8 @@ shinyServer(function(input,output,session){
     class = 'order-column nowrap',
     extensions = c('ColVis','ColReorder', 'TableTools'),
     #selection = list(mode = 'multiple', selected = as.character(selected_rows)),
-    options = list(dom = 'TRC<"clear">lifrStp',
+    options = list(dom = 'CTRf<"clear">lirSpt',
                    scrollX = TRUE, scrollCollapse = TRUE,
-                   
                    autoWidth = TRUE,
                    orderClasses = TRUE,
                    colReorder = list(realtime = TRUE),
@@ -70,13 +90,6 @@ shinyServer(function(input,output,session){
                    server = FALSE,
                    stateSave = TRUE,
                    tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
-#                                   "aButtons" = list("print", "select_none",list("sExtends" = "select_all",
-#                                                                                 "oSelectorOpts"=list("page"="all"
-#                                                                                                     ),
-#                                                                                 "sButtonText" = "Select All"
-#                                                                                 #"fnClick" = 
-#                                                                                   #JS(" function ( nButton, oConfig, oFlash ) {
-#                                                                                     #")))),
                                     aButtons = list(
                                                     'print', 'select_none','select_all'
                                                    )),
@@ -87,20 +100,15 @@ shinyServer(function(input,output,session){
                      ({'background-color': '#6AB4FF', 'color': '#fff'});",
                      "}"
                    )
-    )
-                   
+    )                 
 )
-  observeEvent(input$selectAll,
-               {selected_rows <- 1:nrow(getFullTable())})
+  
   #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
   #Trigger Operation when ActionButton Pressed ----------------------------
   observeEvent(input$actionButton,{
-    selected_rows <<-as.integer(input$mainTable_rows_selected)
-#     if(input$selectAll >= input$actionButton)
-#       selected_rows <- 1:nrow(getFullTable())
+    selected_rows <-as.integer(input$mainTable_rows_selected)
     operation <- input$operationType
-    print(selected_rows)
     if(length(selected_rows) == 0 ){
       createAlert(session, "alert", alertId = "noRows",title = "No Rows Selected",
                   content = "Please select at least one row to perform operation on.",append = F)
@@ -111,11 +119,8 @@ shinyServer(function(input,output,session){
     }
     else{
       #if there are selected rows: close any possible previous noRows alerts 
-      closeAlert(session, "noRows")
-      closeAlert(session, "fqdnoRows")
       n <- getFullTable()
-      n_selected <- n[selected_rows,]
-      
+      n_selected <<- n[selected_rows,]
       if(is.element(operation, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
          && !is.element('run', colnames(n_selected))){
         createAlert(session, "alert", "notRun", title = "Error:",
@@ -128,7 +133,8 @@ shinyServer(function(input,output,session){
       {
         closeOperationAlerts(session)
         switch( operation,
-                "srainfo"= updateTabsetPanel(session, "tabSet",
+                "srainfo"= 
+                  updateTabsetPanel(session, "tabSet",
                                              selected = "operation"),
                 "fqinfo" = updateTabsetPanel(session, "tabSet",
                                              selected = "operation"),
@@ -141,6 +147,7 @@ shinyServer(function(input,output,session){
                   splitStyle <- input$fqd_splitStyle
                   minSpotId <- input$fqd_min
                   maxSpotId <- input$fqd_max
+                  print(paste(minSpotId, maxSpotId))
                   fastqDumpCMD <- getfqdCMD()
                   if(is.null(fastqDumpCMD ) || !grepl('fastq-dump',fastqDumpCMD)){
                       createAlert(session, anchorId = 'fqdalert', title = "Missing FASTQ Dump Command",
@@ -152,13 +159,13 @@ shinyServer(function(input,output,session){
                       return()
                     }
                   outdir <- getOutdirpath()
-                  if(is.na(maxSpotId) && is.na(minSpotId)){
+                  if(input$fullFile){
                     maxSpotId = -1
                     minSpotId = 0
                   }
-                  else if(maxSpotId <1 || minSpotId < 0 || minSpotId > maxSpotId ){
+                  else if(is.na(maxSpotId) || is.na(minSpotId) || maxSpotId <1 || minSpotId < 0 || minSpotId > maxSpotId){
                     createAlert(session, anchorId = 'fqdalert', content = "Invalid spotID range. Please enter valid range
-                                or check 'Entire File' option.")
+                                or check 'Entire File' option.", style = "danger")
                     return()
                   }
                   
@@ -193,12 +200,7 @@ shinyServer(function(input,output,session){
   
   # Operation Results Table-------------------------
   output$operationResultsTable <- renderDataTable({
-    input$reload
     input$actionButton #Table not drawn until Action button clicked 
-    progress <- shiny::Progress$new()
-    progress$set(message = 'Calculating Results . . . ', value = 5)
-    on.exit(progress$close())
-    
     isolate({
       operationType = input$operationType
       selected_rows  <<- as.integer(input$mainTable_rows_selected)
@@ -226,13 +228,11 @@ shinyServer(function(input,output,session){
                     codeVector = n_selected[,"run"]
                   else
                     codeVector = n_selected[,yessAcc[1]]
-                  #sraConvert(codeVector = in_acc, sra_con = sra_con)
                   n <- listSRAfile( codeVector, sra_con, 
                                     fileType = 'sra')
                   n$ftp <- createLink(n$ftp, "Download SRA") #links to download SRA 
                   outputTable <- n
-                  
-                }
+               }
         )}
     })
   },
@@ -251,15 +251,6 @@ shinyServer(function(input,output,session){
                  #columnDefs = list(list(width = '450px', targets = c(1) ))
   )      
   )
-  # Operation Message ---------------------------------------------
-  observeEvent( input$tabSet == 'operation',{
-    if(( input$operationType == 'none' || input$actionButton == 0)
-       && input$tabSet == 'operation'){
-      createAlert(session, "alert", alertId = "noAction", title = "No results to display",
-                  content = "No action submitted for selected rows.", append = F)
-    }
-  }
-  ) 
 #%%%%%%%%%%%%%%%%%%%%%% Download Handlers %%%%%%%%%%%%%%%%%%%%%%%%%%
 #Download handler ---------------------------------------- 
   output$downloadFullSRA<- downloadHandler(
@@ -302,41 +293,35 @@ shinyServer(function(input,output,session){
       return(parseDirPath(roots , input$outdirButton))
   })
   
-#Show chosen directory --------------------------------------
-  output$show_outdirpath <- renderText({
-    input$outdirButton
-    isolate({
-      getOutdirpath()
-    })
-  })
-  
-  #Link button to directory path ---------------------------------
+#Link button to directory path ---------------------------------
   shinyFileChoose("fqdCMDButton", input = input, session = session,
-                 roots=c(wd = '/Users'), filetypes=c('', '.*'))
-  
-#Display chosen directory --------------------------------------
-  output$show_fqdCMDpath<- renderText({
-    input$fqdCMDButton
-    isolate({
-      getfqdCMD()
-    })
-    
-  })
-  
+                  roots=c(wd = '/Users'), filetypes=c('', '.*'))
+
 #Choose fqdCMD ------------------------
   getfqdCMD <- reactive({
     roots = c(wd='/Users')
     path <- parseFilePaths(roots , input$fqdCMDButton)
-    if(is.data.frame(path) & nrow(path)==0)
+    if(is.data.frame(path) & nrow(path)==0){
       return(NULL)
+    }
     return(levels(path$datapath))
   })
+  #=-----------------------------------------------
+  observe({
+      updateTextInput(session, "show_outdirpath", value = getOutdirpath())
+    })
+  
+  observe({
+    updateTextInput(session, "show_fqdCMDpath", value = getfqdCMD())
+  })
+
   
 #Open Finder to see files -------------
  observeEvent(input$viewFiles, {
   outdir = getOutdirpath()
   system(sprintf("open %s", outdir))
 })  
+  
 #Plot of ERD---------------------------
 output$eGraphPlot <- renderPlot( {
   input$actionButton
@@ -364,11 +349,24 @@ makePlot <- reactive({
   })
 })
   
-output$searchPanel <- renderUI({
-    #     list(
-    # 
-    #     )
-    #   })
+createAlert(anchorId = "TBalert", alertId = "NoSearch", title = "No Search Terms Entered",
+              content = "Please enter search terms to display results", session= session)
+
+output$selectHelp <- renderText({
+    return('Select Rows [?]')
+  })
+addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row 
+          to select it for an operation, choose an operation, then press 'Submit'."), trigger = 'click')
+  
+output$smartSearch <- renderText({
+    return('Advanced Search [?]')
+  })
+addPopover(session, "smartSearch", title = NULL,content = paste0("Smart Search--------------------- 
+                                                                   OR, * , Column = set value, 
+                                                                   Double quotes exact phrase search"),
+             trigger = 'click')  
+  
+ 
 })#END SERVER 
 
 ######################################################################################################
@@ -387,12 +385,7 @@ createLink <- function(val, linkdisplay) {
   sprintf('<a href="%s" target="_blank" 
           class="btn btn-link"> %s </a>',val,linkdisplay)
 }
-# Disable Action button------------------------------------------
-disableActionButton <- function(id,session) {
-  session$sendCustomMessage(type="jsCode",
-                            list(code= paste("$('#",id,"').prop('disabled',true)"
-                                             ,sep="")))
-}
+
 
 # Modified getSRA------------------------------------------------
 getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study", 
