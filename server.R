@@ -1,7 +1,7 @@
 #server.R  SRAdb-app 
 #Olivia Zhang   July 9, 2015 
 #===========================================#
-Libs = c('shiny', 'DT', 'SRAdb', 'shinyBS', 'Rgraphviz', 'shinyFiles')
+Libs = c('shiny', 'DT', 'SRAdb', 'shinyBS', 'Rgraphviz', 'shinyFiles', 'R.utils')
 for( Lib in Libs ) {
   if( !require( Lib, character.only = T ) ) {
     source("http://bioconductor.org/biocLite.R")
@@ -90,11 +90,11 @@ if( ! file.exists("www") ) {
                    server = FALSE,
                    stateSave = TRUE,
                    tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
-                                     sRowSelect = "os",
+                                     #sRowSelect = "os",
                                     aButtons = list(
-                                                    'print', 'select_none'
+                                                    'print'
                                                    )),
-                   columnDefs = list(list(width = '200px', targets = c(1,2,3,4,5) )),
+                   #columnDefs = list(list(width = '200px', targets = c(1,2,3,4,5) )),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
@@ -103,6 +103,15 @@ if( ! file.exists("www") ) {
                    )
     )                 
 )
+  output$instr_models <- renderDataTable({
+    dt <- read.csv("SRAinstrument_counts.xls", sep= ",", header = TRUE)
+    
+  
+  },
+  rownames = FALSE,
+  options = list(dom = "T"),
+  colnames = c("Count:", "Instrument Model" ))
+  
   
   #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
@@ -149,11 +158,11 @@ if( ! file.exists("www") ) {
                   minSpotId <- input$fqd_min
                   maxSpotId <- input$fqd_max
                   print(paste(minSpotId, maxSpotId))
-                  fastqDumpCMD <- getfqdCMD()
+                  fastqDumpCMD <- input$fqdPlaces
                   if(is.null(fastqDumpCMD ) || !grepl('fastq-dump',fastqDumpCMD)){
                       createAlert(session, anchorId = 'fqdalert', title = "Missing FASTQ Dump Command",
-                                  content = paste0("Please indicate the location to the fastq-dump command on your device.
-                                                  The fastq-dump command is part of the sra toolkit, which can be downloaded", 
+                                  content = paste0("Please indicate the location to the fastq-dump command on your device. Create a link to the command using 'sudo'. 
+                                                  The fastq-dump command is part of the sra toolkit, which must be downloaded to perform a fast-q dump.", 
                                                   createLink("http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software", 
                                                              "here")), style = "danger"
                                              )
@@ -214,18 +223,21 @@ if( ! file.exists("www") ) {
         n_selected <- n[selected_rows,]
         run_codes <- as.vector(n_selected[,"run"])
         switch( input$operationType,
+                
                 "fqinfo" = {
                   fqinfo <- getFASTQinfo(in_acc = run_codes, sra_con = sra_con, srcType =  'fasp')
                   fqinfo$fasp <- createLink(fqinfo$fasp,paste("Download", fqinfo$run, "fastq file"))
-                  newBottom <- fqinfo[,1:5]  #rearrange columns to look better
+                  newBottom <- fqinfo[,1:5] 
                   newTop <- fqinfo[,6:11]
                   outputTable <- cbind(newTop, newBottom)
                 },
+                
                 "srainfo" = {
                   srainfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
                   srainfo$ftp <- createLink(srainfo$ftp, paste("Download SRA for ",srainfo$run))
                   outputTable <- srainfo
                 },
+                
                 "related_acc" = {
                   acc_possible <- c("run", "study", "experiment", "sample", "submission" )
                   yesAcc = intersect(acc_possible,colnames(n_selected))
@@ -253,7 +265,7 @@ if( ! file.exists("www") ) {
                  lengthMenu = c(15, 50, 100),pageLength = 15,
                  searchHighlight = TRUE,
                  tableTools = list(sSwfPath = copySWF())
-                 #columnDefs = list(list(width = '450px', targets = c(1) ))
+                 
   )      
   )
 #%%%%%%%%%%%%%%%%%%%%%% Download Handlers %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -287,7 +299,12 @@ if( ! file.exists("www") ) {
 #Links to Directory button  ---------------------------------
   shinyDirChoose("outdirButton", input = input, session = session,
                  roots=c(wd = '/Users'), filetypes=c('', '.*'))
-  
+  observe({
+    fastqCMD <- system(' which fastq-dump', intern = TRUE)
+     updateTextInput(session, 'fqdPlaces', label = NULL,
+                     value = fastqCMD)
+   }
+   )
 #Get chosen directory ------------------------------------------
   getOutdirpath <- reactive({
     roots = c(wd='/Users')
@@ -297,32 +314,31 @@ if( ! file.exists("www") ) {
     else
       return(parseDirPath(roots , input$outdirButton))
   })
-  
-#Link button to directory path ---------------------------------
-  shinyFileChoose("fqdCMDButton", input = input, session = session,
-                  roots=c(wd = '/Users'), filetypes=c('', '.*'))
-
-#Choose fqdCMD ------------------------
-  getfqdCMD <- reactive({
-    roots = c(wd='/Users')
-    path <- parseFilePaths(roots , input$fqdCMDButton)
-    if(is.data.frame(path) & nrow(path)==0){
-      return(NULL)
-    }
-    return(levels(path$datapath))
-  })
+#   
+# #Link button to directory path ---------------------------------
+#   shinyFileChoose("fqdCMDButton", input = input, session = session,
+#                   roots=c(wd = '/Users'), filetypes=c('', '.*'))
+# #Choose fqdCMD ------------------------
+#   getfqdCMD <- reactive({
+#     roots = c(wd='/Users')
+#     path <- parseFilePaths(roots , input$fqdCMDButton)
+#     if(is.data.frame(path) & nrow(path)==0){
+#       fastqCMD <- system('find ~ -name "fastq-dump"', intern = TRUE)
+#       print(fastqCMD)
+#       updateRadioButtons(session, "fqdPlaces", label = NULL, choices = fastqCMD)
+#       return(fastqCMD)
+#       
+#     }
+#     updateCheckboxGroupInput(session, "fqdPlaces", label = NULL, choices = levels(path$datapath))
+#     return(levels(path$datapath))
+#   })
   #=-----------------------------------------------
   observe({
       updateTextInput(session, "show_outdirpath", value = getOutdirpath())
     })
-  
-  observe({
-    updateTextInput(session, "show_fqdCMDpath", value = getfqdCMD())
-  })
-
-  
+ 
 #Open Finder to see files -------------
- observeEvent(input$viewFiles, {
+observeEvent(input$viewFiles, {
   outdir = getOutdirpath()
   system(sprintf("open %s", outdir))
 })  
@@ -364,8 +380,13 @@ addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row
 output$smartSearch <- renderText({
     return('Advanced Search [?]')
   })
-addPopover(session, "smartSearch", title = NULL,content = HTML(paste("<b>Smart Search Options: </b>", "-'OR' to search for two topics","-'Column = value' for all results with given column value",
-                                                                     "-Double quotes around phrase to search exact phrase ", "-'term*' for results beginning with 'term'", sep = '<br/>')),
+addPopover(session, "smartSearch", title = NULL,content = HTML(paste('<b>Smart Search Options: </b> 
+                                                                     <ul>
+                                                                     <li><em>OR</em> for 2/more topics</li>
+                                                                     <li><em>columnn</em> = <em>value</em> for all reslts with given column value</li> 
+                                                                     <li><em>"Search Terms"</em> for full phrase search</li>
+                                                                     <li><em> term* </em> for all results that begin with term</li>
+                                                                     </ul>')),
              trigger = 'click')  
   
  
