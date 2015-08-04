@@ -41,7 +41,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                           "Study" = "study", "Experiment" = "experiment" ,
                                           "Submission" = "submission",
                                           "Sample" = "sample", "Run" = "run", 
-                                          "Full SRA" = "sra"), selected = "srabrief"
+                                          "Full SRA" = "sra",
+                                           "Accession Codes" = "acc_table"), selected = "srabrief"
                 )
             ),
             column(1,
@@ -80,7 +81,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                    column(5, offset = 4,
                           bsAlert("TBalert")
                    ),
-                conditionalPanel( "input.searchTerms != '' && input.searchButton > 0",
+                conditionalPanel( "input.searchButton > 0",
                                   wellPanel(
                                   fluidRow(
                                     column(12,
@@ -89,11 +90,11 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                             column(4,
                                                     selectizeInput("operationType", label = NULL,
                                                                    choices = list("Export Selected" = "download",
-                                                                                  "Get Related Accession Codes" = "related_acc",
                                                                                   "Get FastQ Info" = "fqinfo",
                                                                                   "Get SRA Info" = "srainfo",
                                                                                   "FastQ Dump File" = "fastqdump",
-                                                                                  "Display ERD" = "eGraph"
+                                                                                  "Show Related Accession Codes" = "related_acc",
+                                                                                  "Display Entity Graph" = "eGraph"
                                                                    ),
                                                                    options = list(
                                                                      placeholder = 'Perform on Selected Rows:   ',
@@ -138,7 +139,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                                  )
                                                                        )
                                                                 ),
-                                                               column(4, 
+                                                               column(5, 
                                                                       fluidRow(
                                                                         column(10,textInput('show_outdirpath', label = "Download Location:"),
                                                                                textInput('fqdPlaces', label = "Fastq-dump Command Location:", value = '')
@@ -151,10 +152,19 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                )
                                                                       )
                                                                       ),
-                                                                column(4, offset = 1,
-                                                                       bsAlert('fqdalert'),
+                                                                column(4, 
+                                                                       fluidRow(
+                                                                         column(2),
+                                                                         column(10,bsAlert('fqdalert')
+                                                                                )
+                                                                       ),
                                                                        br(),
-                                                                       actionButton("viewFiles", label = "View Download Directory")
+                                                                       fluidRow(
+                                                                         column(4),
+                                                                         column(8,  actionButton("viewFiles", label = "View Download Directory")
+                                                                                )
+                                                                       )
+                                                                     
                                                                 )
                                                               )
                                                             )

@@ -54,8 +54,16 @@ shinyServer(function(input,output,session){
     isolate({
     dataType <- input$dataType
     searchTerms <- input$searchTerms
+    if(dataType == "acc_table"){
+      n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
+                     out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
+      n <- n[,c("study","experiment","sample","run", "submission")]
+    }
+    else{
     n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
+    }
+    
   })
   })
   
@@ -137,11 +145,11 @@ if( ! file.exists("www") ) {
                     content = "Please select data of type 'run'.",style = "danger",append = FALSE)
         createAlert(session, "fqdalert", "fqdnotRun", title = "Error:",
                     content = "Please select data of type 'run'.",style = "danger",append = FALSE)
-        updateTabsetPanel(session, "tabSet",selected = "operation")
+        
       }
       else
       {
-        closeOperationAlerts(session)
+        closeOperationAlerts(session) }
         switch( operation,
                 "srainfo"= 
                   updateTabsetPanel(session, "tabSet",
@@ -168,7 +176,7 @@ if( ! file.exists("www") ) {
                                              )
                       return()
                     }
-                  outdir <- getOutdirpath()
+                  outdir <- input$show_outdirpath
                   if(input$fullFile){
                     maxSpotId = -1
                     minSpotId = 0
@@ -203,7 +211,7 @@ if( ! file.exists("www") ) {
                   }
              
         )#end Switch 
-      }
+      
     }
     
   })
@@ -218,10 +226,20 @@ if( ! file.exists("www") ) {
     isolate({
       operationType = input$operationType
       selected_rows  <<- as.integer(input$mainTable_rows_selected)
-      if(length(selected_rows) != 0){
+      if(length(selected_rows) == 0){
+        return()
+      }
+      else{
         n <- getFullTable()
         n_selected <- n[selected_rows,]
-        run_codes <- as.vector(n_selected[,"run"])
+        if (is.element(operationType, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
+            && !is.element('run', colnames(n_selected))){
+          return()
+        }
+        if( operationType != "related_acc")
+        {
+          run_codes <- as.vector(n_selected[,"run"])
+        }
         switch( input$operationType,
                 
                 "fqinfo" = {
@@ -242,9 +260,12 @@ if( ! file.exists("www") ) {
                   acc_possible <- c("run", "study", "experiment", "sample", "submission" )
                   yesAcc = intersect(acc_possible,colnames(n_selected))
                   if('run'%in%colnames(n_selected))
-                    codeVector = n_selected[,"run"]
+                    {print(colnames(n_selected))
+                     codeVector = n_selected[,"run"]
+                  }
                   else
-                    codeVector = n_selected[,yessAcc[1]]
+                    codeVector = n_selected[,yesAcc[1]]
+                  print(codeVector)
                   n <- listSRAfile( codeVector, sra_con, 
                                     fileType = 'sra')
                   n$ftp <- createLink(n$ftp, "Download SRA") #links to download SRA 
@@ -360,6 +381,9 @@ makePlot <- reactive({
       n = getFullTable()
       selected_rows <<- as.integer(input$mainTable_rows_selected)
       n_selected <- n[selected_rows,]
+      if(length(selected_rows) == 0 || !is.element('run', colnames(n_selected))){
+        return()
+      }
       runcodes <- as.vector(n_selected[,"run"])
       print(runcodes)
       acc_table <-  sraConvert( runcodes, sra_con = sra_con ) #convert runs into full table 
