@@ -1,5 +1,6 @@
 -Author: Olivia Zhang 
 ## SRAdb Web Application:
+- To Use: Move the SRAdb sqlite file (downloaded using getSRAdbFile()) to the App's directory.
 
 - Functions:
 
@@ -9,4 +10,4 @@
 - Export Table Results as Excel
 - Create Entity Graph Visualizations for SRA Data 
 
-#Uses packages: SRAdb (by Jack Zhu), shinythemes, shinyFiles, DT
+#Uses packages: SRAdb (by Jack Zhu), shinythemes, shinyFiles, DT, RgraphViz, R.utils
