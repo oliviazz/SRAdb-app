@@ -11,24 +11,18 @@ for( Lib in Libs ) {
 }
 #======================#
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
+                  tags$head(
+                    tags$style(HTML(".shiny-progress .bar {
+                                                  background-color: #39FF14;
+                                                  .opacity = 0.8;
+                                                  }
+                                    .shiny-progress .progress {
+                                                  height:8px;
+                                                  }
+                                    
+                                    "))
+                    ),
   titlePanel(h4(em("SRAdb Web Application"))),
-  conditionalPanel(condition="$('html').hasClass('shiny-busy')",
-                   tags$div(" . . . . ",id="loadmessage"),
-                   tags$style(type="text/css", "
-                              #loadmessage {
-                              position: fixed;
-                              top:6px;
-                              left: 0px;
-                              width: 100%;
-                              padding: 5px 0px 5px 0px;
-                              text-align: center;
-                              font-weight: bold;
-                              font-size: 100%;
-                              color: #FFFFFF ;
-                              background-color: #ffff00 ;
-                              z-index: 105;
-                              }")
-                ),
     wellPanel(
         fluidRow(
             column(4,
@@ -180,24 +174,6 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                 column(5, offset = 4,
                           br(),
                           bsAlert("alert")),
-                conditionalPanel(
-                  condition="$('html').hasClass('shiny-busy')",
-                                 tags$div(" . . . . ",id="oloadmessage"),
-                                 tags$style(type="text/css", "
-                                   #oloadmessage {
-                                  position: fixed;
-                                  top: 6x;
-                                  left: 0px;
-                                  width: 100%;
-                                  padding: 5px 0px 5px 0px;
-                                  text-align: center;
-                                  font-weight: bold;
-                                  font-size: 100%;
-                                  color: #FFFFFF ;
-                                  background-color: #ffff00 ;
-                                  z-index: 105;
-                                  }")
-                ),
                           conditionalPanel(condition = "input.operationType == 'fqinfo' || 'srainfo' || 'related_acc'",
                                    dataTableOutput('operationResultsTable')
                                     ),
