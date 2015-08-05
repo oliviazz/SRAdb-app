@@ -4,9 +4,9 @@
 ##### To Use:
 Get files and move the SRAdb sqlite file (downloaded using getSRAdbFile()) to the App's directory.
 
-######Uses packages: 
+#####Uses packages: 
 SRAdb, shinythemes, shinyFiles, DT, RgraphViz, R.utils
-######Functions:
+#####Functions:
 
 - Query Sequence Repository Archive Using Advanced Text Search
 - Get info about SRA and FASTQ data files 
