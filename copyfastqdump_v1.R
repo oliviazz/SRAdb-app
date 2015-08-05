@@ -72,9 +72,9 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   else{
       opt_origfmt = ''
   }
+  
   ## DumpCS
- 
-  if(dumpcs){
+ if(dumpcs){
       opt_dumpcs = '--dumpcs'
       if (dumpcs != TRUE && dumpcs != FALSE)
         opt_dumpcs = paste(oopt_dumpcs, dumpcs)
@@ -118,7 +118,7 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
     opt_minSpotId = paste0(' -N', maxSpotId)
   }
   
-  # MinReadLength
+  ## MinReadLength
   if(minReadLen <= 0){
     if (minReadLen < 0)
       warning('Negative Values and non-integer values not accepted for minReadLength. 
@@ -146,14 +146,14 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
     opt_splitStyle= ''
   }
   
-  # Skip technical
+  ## Skip technical
   if(skip_technical){
       opt_skip_technical = '--skip-technical'
   } else {
     opt_skip_technical = ''
   }
   
-  # Aligned
+  ## Aligned
   opt_align = ''
   if(aligned){
     opt_align <- paste(opt_align, '--aligned')
@@ -164,7 +164,6 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   
 #   
 #   ### Debugging Help 
-
 #     print(paste( fastqDumpCMD,
 #                  opt_maxSpotId,opt_minSpotId, opt_minReadLen, opt_outdir,
 #                  opt_zipFormat, opt_skip_technical, opt_fasta,
