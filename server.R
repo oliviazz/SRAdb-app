@@ -19,9 +19,8 @@ source('copyfastqdump_v1.R')
 
 #Start Shiny Server 
 shinyServer(function(input,output,session){
-
-  
-#%%%%%%%%%%%%%%%%%%%%SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%
+ 
+#%%%%%%%%%%%%%%%%%%%% SEARCH RESULT TABLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
 #Switch panel on search--------------------------------------------
   createAlert(session, "TBalert", alertId = "NoSearch", title = "No results to display",
               content = "Please enter search terms to display results", append = F)
@@ -43,8 +42,7 @@ shinyServer(function(input,output,session){
                   content = "Please select rows and select operation to display results.", append = F,
                   style = "danger")
   })
-  
-  
+ 
 #Search Table fromsearch terms, data type-------------------------- 
   getFullTable <- reactive({
     progress <- shiny::Progress$new()
@@ -63,7 +61,6 @@ shinyServer(function(input,output,session){
     n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
     }
-    
   })
   })
   
@@ -86,8 +83,6 @@ if( ! file.exists("www") ) {
     escape = FALSE,
     class = 'order-column nowrap',
     extensions = c('ColVis','ColReorder', 'TableTools'),
-   
-    #selection = list(mode = 'multiple', selected = as.character(selected_rows)),
     options = list(dom = 'CTRf<"clear">lirSpt',
                    scrollX = TRUE, scrollCollapse = TRUE,
                    autoWidth = TRUE,
@@ -111,17 +106,15 @@ if( ! file.exists("www") ) {
                    )
     )                 
 )
+# Intrument Model Table on Front Page---------------------------------
   output$instr_models <- renderDataTable({
     dt <- read.csv("SRAinstrument_counts.xls", sep= ",", header = TRUE)
-    
-  
   },
   rownames = FALSE,
   options = list(dom = "T"),
   colnames = c("Count:", "Instrument Model" ))
-  
-  
-  #%%%%%%%%%%%%%%%%%%% Display Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
+ 
+#%%%%%%%%%%%%%%%%%%% Handling Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
   
   #Trigger Operation when ActionButton Pressed ----------------------------
   observeEvent(input$actionButton,{
@@ -139,13 +132,15 @@ if( ! file.exists("www") ) {
       #if there are selected rows: close any possible previous noRows alerts 
       n <- getFullTable()
       n_selected <- n[selected_rows,]
-      if(is.element(operation, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
+      if(is.element(operation, c('srainfo', 'fqinfo', 'fastqdump')) 
          && !is.element('run', colnames(n_selected))){
         createAlert(session, "alert", "notRun", title = "Error:",
                     content = "Please select data of type 'run'.",style = "danger",append = FALSE)
         createAlert(session, "fqdalert", "fqdnotRun", title = "Error:",
                     content = "Please select data of type 'run'.",style = "danger",append = FALSE)
-        
+        if(operation == 'fastqdump'){
+          return()
+        }
       }
       else
       {
@@ -209,16 +204,13 @@ if( ! file.exists("www") ) {
                     createAlert(session, "fqdalert",title = "FASTQ Dump completed",
                                 content = message, style = "success", append = F)
                   }
-             
-        )#end Switch 
-      
+         )#end Switch 
     }
-    
-  })
+})
   
-  # Operation Results Table-------------------------
+#Operation Results Table-------------------------
   output$operationResultsTable <- renderDataTable({
-    input$actionButton #Table not drawn until Action button clicked 
+    input$actionButton 
     input$reload
     progress <- shiny::Progress$new()
     progress$set(message = 'Loading Search Results . . . ', value = 5)
@@ -232,11 +224,11 @@ if( ! file.exists("www") ) {
       else{
         n <- getFullTable()
         n_selected <- n[selected_rows,]
-        if (is.element(operationType, c('srainfo', 'fqinfo', 'eGraph', 'fastqdump')) 
+        if (is.element(operationType, c('srainfo', 'fqinfo', 'fastqdump'))  #//////////////HERE
             && !is.element('run', colnames(n_selected))){
           return()
         }
-        if( operationType != "related_acc")
+        if( operationType != ("related_acc") && operationType != ("eGraph"))
         {
           run_codes <- as.vector(n_selected[,"run"])
         }
@@ -289,6 +281,51 @@ if( ! file.exists("www") ) {
                  
   )      
   )
+  
+#Plot of ERD---------------------------
+  output$eGraphPlot <- renderPlot( {
+    input$actionButton
+    isolate({
+      plot <- makePlot()})
+  })
+  observeEvent(input$operationType == "eGraph",{
+    if(input$operationType == "eGraph"){
+    createAlert(session, alertId = "eGraphWarning", anchorId = "TBalert", title = "Warning:", content = 
+                  "Entity Graph creation for large data sets,including those of type STUDY or SUBMISSION, will take a 
+                long time and is not recommended.", style = "warning")
+    }
+  })
+#return ERD graph---------------------
+  makePlot <- reactive({
+    input$actionButton
+    input$reload
+    progress <- shiny::Progress$new()
+    progress$set(message = 'Generating Plot . . . ', value = 5)
+    on.exit(progress$close())
+    isolate({
+      n = getFullTable()
+      selected_rows <<- as.integer(input$mainTable_rows_selected)
+      n_selected <- n[selected_rows,]
+      if(length(selected_rows) == 0 ){
+        return()
+      }
+      acc_possible <- c("run", "study", "experiment", "sample", "submission" )
+      yesAcc = intersect(acc_possible,colnames(n_selected))
+      
+      if('run'%in%colnames(n_selected))
+      { print(colnames(n_selected))
+        codeVector = as.vector(n_selected[,"run"])
+      }
+      else
+        codeVector = as.vector(n_selected[,yesAcc[1]])
+      print(codeVector)
+      acc_table <-  sraConvert( codeVector, sra_con = sra_con ) #convert runs into full table 
+      g <- sraGraph_1(acc_table)
+      attrs <- getDefaultAttrs(list(node=list(
+        fillcolor='lightblue', shape='ellipse'),edge=list(color="darkblue")))
+      plot(g, attrs=attrs)
+    })
+  })
 #%%%%%%%%%%%%%%%%%%%%%% Download Handlers %%%%%%%%%%%%%%%%%%%%%%%%%%
 #Download handler ---------------------------------------- 
   output$downloadFullSRA<- downloadHandler(
@@ -316,7 +353,7 @@ if( ! file.exists("www") ) {
     }
   )
 #%%%%%%%%%%%%%%%%%%%%%%%%% Choosing Directory %%%%%%%%%%%%%%%%%%%%%%%
-  
+
 #Links to Directory button  ---------------------------------
   shinyDirChoose("outdirButton", input = input, session = session,
                  roots=c(wd = '/Users'), filetypes=c('', '.*'))
@@ -335,73 +372,26 @@ if( ! file.exists("www") ) {
     else
       return(parseDirPath(roots , input$outdirButton))
   })
-#   
-# #Link button to directory path ---------------------------------
-#   shinyFileChoose("fqdCMDButton", input = input, session = session,
-#                   roots=c(wd = '/Users'), filetypes=c('', '.*'))
-# #Choose fqdCMD ------------------------
-#   getfqdCMD <- reactive({
-#     roots = c(wd='/Users')
-#     path <- parseFilePaths(roots , input$fqdCMDButton)
-#     if(is.data.frame(path) & nrow(path)==0){
-#       fastqCMD <- system('find ~ -name "fastq-dump"', intern = TRUE)
-#       print(fastqCMD)
-#       updateRadioButtons(session, "fqdPlaces", label = NULL, choices = fastqCMD)
-#       return(fastqCMD)
-#       
-#     }
-#     updateCheckboxGroupInput(session, "fqdPlaces", label = NULL, choices = levels(path$datapath))
-#     return(levels(path$datapath))
-#   })
-  #=-----------------------------------------------
+
   observe({
       updateTextInput(session, "show_outdirpath", value = getOutdirpath())
     })
  
-#Open Finder to see files -------------
+#Open Finder to see files ----------------------
 observeEvent(input$viewFiles, {
   outdir = getOutdirpath()
   system(sprintf("open %s", outdir))
 })  
   
-#Plot of ERD---------------------------
-output$eGraphPlot <- renderPlot( {
-  input$actionButton
-  isolate({
-    plot <- makePlot()})
-})
-#return ERD graph---------------------
-makePlot <- reactive({
-  input$actionButton
-  input$reload
-  progress <- shiny::Progress$new()
-  progress$set(message = 'Generating Plot . . . ', value = 5)
-  on.exit(progress$close())
-  isolate({
-      n = getFullTable()
-      selected_rows <<- as.integer(input$mainTable_rows_selected)
-      n_selected <- n[selected_rows,]
-      if(length(selected_rows) == 0 || !is.element('run', colnames(n_selected))){
-        return()
-      }
-      runcodes <- as.vector(n_selected[,"run"])
-      print(runcodes)
-      acc_table <-  sraConvert( runcodes, sra_con = sra_con ) #convert runs into full table 
-      g <- sraGraph_1(acc_table)
-      attrs <- getDefaultAttrs(list(node=list(
-      fillcolor='lightblue', shape='ellipse'),edge=list(color="darkblue")))
-      plot(g, attrs=attrs)
-  })
-})
   
-
-output$selectHelp <- renderText({
+#Adding help popups------------------------------
+ output$selectHelp <- renderText({
     return('Select Rows [?]')
   })
-addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row 
+ addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row 
           to select it for an operation, choose an operation, then press 'Submit'."), trigger = 'click')
   
-output$smartSearch <- renderText({
+ output$smartSearch <- renderText({
     return('Advanced Search [?]')
   })
 addPopover(session, "smartSearch", title = NULL,content = HTML(paste('<b>Smart Search Options: </b> 
@@ -427,12 +417,12 @@ closeOperationAlerts <- function(session){
   closeAlert(session, "fqdnoRows")
   closeAlert(session, "noAction")
 }
+
 # Clickable HTML Link Given URL(val)-----------------------------
 createLink <- function(val, linkdisplay) {
   sprintf('<a href="%s" target="_blank" 
           class="btn btn-link"> %s </a>',val,linkdisplay)
 }
-
 
 # Modified getSRA------------------------------------------------
 getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study", 

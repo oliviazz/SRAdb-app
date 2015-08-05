@@ -78,9 +78,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
          ),
          tabPanel( "Search Results", value = "search_results",
                    br(),
-                   column(5, offset = 4,
-                          bsAlert("TBalert")
-                   ),
+                   bsAlert("TBalert"),
                 conditionalPanel( "input.searchButton > 0",
                                   wellPanel(
                                   fluidRow(
@@ -89,12 +87,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                              column(2, offset = 1, (h6(textOutput('selectHelp')))),
                                             column(4,
                                                     selectizeInput("operationType", label = NULL,
-                                                                   choices = list("Export Selected" = "download",
+                                                                   choices = list("Get All Related Accession Codes" = "related_acc",
+                                                                                  "Export Selected" = "download",
                                                                                   "Get FastQ Info" = "fqinfo",
                                                                                   "Get SRA Info" = "srainfo",
                                                                                   "FastQ Dump File" = "fastqdump",
-                                                                                  "Show Related Accession Codes" = "related_acc",
-                                                                                  "Display Entity Graph" = "eGraph"
+                                                                                  "Display Entity Relationship Graph" = "eGraph"
                                                                    ),
                                                                    options = list(
                                                                      placeholder = 'Perform on Selected Rows:   ',
