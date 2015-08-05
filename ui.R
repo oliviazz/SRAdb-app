@@ -4,6 +4,7 @@
 Libs = c('shiny', 'DT', 'SRAdb', 'shinyBS', 'Rgraphviz', 'shinythemes', 'shinyFiles')
 for( Lib in Libs ) {
   if( !require( Lib, character.only = T ) ) {
+    print(Lib)
     source("http://bioconductor.org/biocLite.R")
     biocLite( Lib, type='source', lib = .libPaths()[2] )
     library( Lib, character.only = T )
@@ -13,13 +14,12 @@ for( Lib in Libs ) {
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   tags$head(
                     tags$style(HTML(".shiny-progress .bar {
-                                                  background-color: #4CC417;
-                                                  .opacity = 0.9;
+                                                  background-color: #FF0000;
+                                                  .opacity = 1;
                                                   }
                                     .shiny-progress .progress {
                                                   height:6px;
                                                   }
-                                    
                                     "))
                     ),
   titlePanel(h4(em("SRAdb Web Application"))),
@@ -41,7 +41,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
             ),
             column(1,
                 br(),br(),
-                actionButton("searchButton",icon("search", lib = "glyphicon"), 
+                actionButton("searchButton", label =  "Search", #icon("search", lib = "glyphicon"), 
                                                  class = "btn btn-primary")
             ),
             column(3,
@@ -76,11 +76,11 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                    bsAlert("TBalert"),
                 conditionalPanel( "input.searchButton > 0",
                                   wellPanel(
-                                  fluidRow(
-                                    column(12,
+                                    fluidRow(
+                                      column(12,
                                            fluidRow(
-                                             column(2, offset = 1, (h6(textOutput('selectHelp')))),
-                                            column(4,
+                                              column(2, offset = 1, (h6(textOutput('selectHelp')))),
+                                              column(4,
                                                     selectizeInput("operationType", label = NULL,
                                                                    choices = list("Get All Related Accession Codes" = "related_acc",
                                                                                   "Export Selected" = "download",
@@ -92,7 +92,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                    options = list(
                                                                      placeholder = 'Perform on Selected Rows:   ',
                                                                      onInitialize = I('function() { this.setValue(""); }')
-                                                                   ))
+                                                                      )
+                                                                   )
                                              ),
                                              column(2,
                                                     conditionalPanel( condition = "input.operationType != 'download'",
@@ -102,7 +103,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                       downloadButton("downloadSelected", label = 'Submit', class = "btn btn-primary")              
                                                     )
                                              ),
-                                             column(2,
+                                            column(2,
                                                     downloadButton("downloadFullSRA", label = " Export Full SRA Table")
                                              )
                                            ),
@@ -143,46 +144,37 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                                 label = "Browse",
                                                                                                 class = "btn btn-link")
                                                                                )
-                                                                      )
+                                                                        )
                                                                       ),
                                                                 column(4, 
                                                                        fluidRow(
-                                                                         column(2),
-                                                                         column(10,bsAlert('fqdalert')
+                                                                          column(2),
+                                                                          column(10,bsAlert('fqdalert')
                                                                                 )
                                                                        ),
                                                                        br(),
                                                                        fluidRow(
-                                                                         column(4),
-                                                                         column(8,  actionButton("viewFiles", label = "View Download Directory")
+                                                                          column(4),
+                                                                          column(8,  actionButton("viewFiles", label = "View Download Directory")
                                                                                 )
                                                                        )
-                                                                     
-                                                                )
-                                                              )
-                                                            )
-                                           )
-                                    )  
-                                  )
-                                  
+                                                                ))
+                                                          ))
+                                      )) #end well Panel
                                   )),
-               
                 br(),
-                
                 DT::dataTableOutput('mainTable')
                 ),
         tabPanel("Operation Results", value = "operation",
-                column(5, offset = 4,
                           br(),
-                          bsAlert("alert")),
+                          bsAlert("alert"),
                           conditionalPanel(condition = "input.operationType == 'fqinfo' || 'srainfo' || 'related_acc'",
                                    dataTableOutput('operationResultsTable')
-                                    ),
+                                   ),
                           conditionalPanel(condition = "input.operationType == 'eGraph'",
                                    plotOutput('eGraphPlot')
                                    )
-                 )
-       )       
+        ))#End Tabset Panel       
   ))
 
   

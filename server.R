@@ -97,7 +97,6 @@ if( ! file.exists("www") ) {
                                     aButtons = list(
                                                     'print'
                                                    )),
-                   #columnDefs = list(list(width = '200px', targets = c(1,2,3,4,5) )),
                    initComplete = JS(
                      "function(settings, json) {",
                      "$(this.api().table().header()).css
@@ -160,7 +159,6 @@ if( ! file.exists("www") ) {
                   splitStyle <- input$fqd_splitStyle
                   minSpotId <- input$fqd_min
                   maxSpotId <- input$fqd_max
-                  print(paste(minSpotId, maxSpotId))
                   fastqDumpCMD <- input$fqdPlaces
                   if(is.null(fastqDumpCMD ) || !grepl('fastq-dump',fastqDumpCMD)){
                       createAlert(session, anchorId = 'fqdalert', title = "Missing FASTQ Dump Command",
@@ -178,7 +176,7 @@ if( ! file.exists("www") ) {
                   }
                   else if(is.na(maxSpotId) || is.na(minSpotId) || maxSpotId <1 || minSpotId < 0 || minSpotId > maxSpotId){
                     createAlert(session, anchorId = 'fqdalert', content = "Invalid spotID range. Please enter valid range
-                                or check 'Entire File' option.", style = "danger")
+                                or check 'Entire File' option.", style = "danger", append = FALSE)
                     return()
                   }
                   
@@ -278,7 +276,6 @@ if( ! file.exists("www") ) {
                  lengthMenu = c(15, 50, 100),pageLength = 15,
                  searchHighlight = TRUE,
                  tableTools = list(sSwfPath = copySWF())
-                 
   )      
   )
   
@@ -316,12 +313,12 @@ if( ! file.exists("www") ) {
       yesAcc = intersect(acc_possible,colnames(n_selected))
       
       if('run'%in%colnames(n_selected))
-      { print(colnames(n_selected))
+      { 
         codeVector = as.vector(n_selected[,"run"])
       }
       else
         codeVector = as.vector(n_selected[,yesAcc[1]])
-      print(codeVector)
+      #print(codeVector)
       acc_table <-  sraConvert( codeVector, sra_con = sra_con ) #convert runs into full table 
       g <- sraGraph_1(acc_table)
       attrs <- getDefaultAttrs(list(node=list(
