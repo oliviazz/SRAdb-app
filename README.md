@@ -1,8 +1,8 @@
 -Author: Olivia Zhang 
 ## SRAdb Web Application:
-#  To run from github: use runGitHub( "SRAdb-app", "oliviazz") in an R session.
-# - This may take a long time to install the SRAdb file
-# - To Use:Get files and move the SRAdb sqlite file (downloaded using getSRAdbFile()) to the App's directory.
+###  To run from github: use runGitHub( "SRAdb-app", "oliviazz") in an R session.
+### - This may take a long time to install the SRAdb file
+### - To Use:Get files and move the SRAdb sqlite file (downloaded using getSRAdbFile()) to the App's directory.
 
 - Uses packages: SRAdb (by Jack Zhu), shinythemes, shinyFiles, DT, RgraphViz, R.utils
 - Functions:
