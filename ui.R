@@ -13,11 +13,11 @@ for( Lib in Libs ) {
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   tags$head(
                     tags$style(HTML(".shiny-progress .bar {
-                                                  background-color: #39FF14;
-                                                  .opacity = 0.8;
+                                                  background-color: #4CC417;
+                                                  .opacity = 0.9;
                                                   }
                                     .shiny-progress .progress {
-                                                  height:8px;
+                                                  height:6px;
                                                   }
                                     
                                     "))
@@ -56,18 +56,19 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                    wellPanel(
                    br(),
                    h2("SRAdb Web Application", align = "center"),
-                   h4("Query the NCBI Sequence Read Archive", align = "center"),
+                   h4(em("Query the NCBI Sequence Read Archive"), align = "center"),
                    br(),
+                   h4( a("Current SRA Data Amounts:"),align = "center"),
                    fluidRow(
-                     h4( a("SRA Homepage", href="http://www.ncbi.nlm.nih.gov/Traces/sra/"), align = "center"),
-                     h4( a("Download SRAdb", href="https://www.bioconductor.org/packages/release/bioc/html/SRAdb.html"), align = "center"),
-                     h4( a("Download SRA toolkit", href="http://www.ncbi.nlm.nih.gov/Traces/sra/?view=software"), align = "center"),
-                     h4( a("Help"), align = "center"),     
-                   
-                   column(4,offset = 4, 
+                  column(4,offset = 4, 
                           DT::dataTableOutput("instr_models")
+                   )),
+                  br(),
+                  h4( a("SRA Homepage", href="http://www.ncbi.nlm.nih.gov/Traces/sra/"), align = "center"),
+                  h4( a("Download SRAdb", href="https://www.bioconductor.org/packages/release/bioc/html/SRAdb.html"), align = "center"),
+                  h4( a("Download SRA toolkit", href="http://www.ncbi.nlm.nih.gov/Traces/sra/?view=software"), align = "center"),
+                  h4( a("Help"), align = "center")
                    )
-                   ))
                    
          ),
          tabPanel( "Search Results", value = "search_results",

@@ -294,6 +294,9 @@ if( ! file.exists("www") ) {
                   "Entity Graph creation for large data sets,including those of type STUDY or SUBMISSION, will take a 
                 long time and is not recommended.", style = "warning")
     }
+    else{
+      closeAlert(session, alertId = "eGraphWarning")
+    }
   })
 #return ERD graph---------------------
   makePlot <- reactive({
@@ -396,8 +399,8 @@ observeEvent(input$viewFiles, {
   })
 addPopover(session, "smartSearch", title = NULL,content = HTML(paste('<b>Smart Search Options: </b> 
                                                                      <ul>
-                                                                     <li><em>OR</em> for 2/more topics</li>
-                                                                     <li><em>columnn</em> = <em>value</em> for all reslts with given column value</li> 
+                                                                     <li><em>OR</em> to combine searches</li>
+                                                                     <li><em>column</em>:<em>value</em> for all reslts with given column value</li> 
                                                                      <li><em>"Search Terms"</em> for full phrase search</li>
                                                                      <li><em> term* </em> for all results that begin with term</li>
                                                                      </ul>')),
