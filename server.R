@@ -155,11 +155,15 @@ if( ! file.exists("www") ) {
                 "related_acc" = updateTabsetPanel(session, "tabSet",
                                              selected = "operation"),
                 "fastqdump" = {
+                  progress <- shiny::Progress$new()
+                  progress$set(message = 'Dumping FASTQ Files . . .', value = 5)
+                  on.exit(progress$close())
                   options <- input$fqd_options
-                  splitStyle <- input$fqd_splitStyle
+                  zipFormat <- input$fqd_splitStyle
                   minSpotId <- input$fqd_min
                   maxSpotId <- input$fqd_max
                   fastqDumpCMD <- input$fqdPlaces
+                  print(zipFormat)
                   if(is.null(fastqDumpCMD ) || !grepl('fastq-dump',fastqDumpCMD)){
                       createAlert(session, anchorId = 'fqdalert', title = "Missing FASTQ Dump Command",
                                   content = paste0("Please indicate the location to the fastq-dump command on your device. Create a link to the command using 'sudo'. 
@@ -189,7 +193,8 @@ if( ! file.exists("www") ) {
                   }
                     message <- capture.output(
                       fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
-                                outdir = outdir, splitStyle = splitStyle,
+                                outdir = outdir, 
+                                zipFormat = zipFormat,
                                 split_spot = is.element("split_splot", options),
                                 skip_technical = is.element("split_splot", options),
                                 origfmt = is.element("origfmt", options),
@@ -198,7 +203,7 @@ if( ! file.exists("www") ) {
                                 dumpcs = is.element("dumpcs", options),
                                 fastqDumpCMD = fastqDumpCMD
                       ))
-                    message <- paste(gsub('"', "",message[1], 'and', message[2]), ' in ', outdir, sep="",collapse="")
+                    message <- paste(gsub('"', "",message[1]), ' in ', outdir, sep="",collapse="")
                     createAlert(session, "fqdalert",title = "FASTQ Dump completed",
                                 content = message, style = "success", append = F)
                   }

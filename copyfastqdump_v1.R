@@ -1,8 +1,5 @@
 #   fastqDump_v1.R | Olivia Zhang | 6 July 2015 
 
-#ask Jack why minReadLength compare number strings, ie == '5' instead == 5 
-#####!!!!!!!!!!!!!!!!!!!!###########
-## Important : chromosome regions , default entire file 
 
 fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_files = TRUE,
                               aligned = TRUE, unaligned = TRUE, 
@@ -17,6 +14,7 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   if( missing(sraAccession)){
     stop( "Please supply a SRA accession. Type fastqDump ('help') for help manual') ")
   }
+  
 
   ## Help manual 
   if ( sraAccession == 'help' ){
@@ -111,11 +109,12 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   ## MinSpotId
   if( minSpotId <= 0) {
     if (maxSpotId < -1)
-      warning("Negative values not accepted for minSpotId. Defaulted to 0")
+      {warning("Negative values not accepted for minSpotId. Defaulted to 0")
+    }
     opt_minSpotId = ''  #not specified 
-  } 
+  }
   else{
-    opt_minSpotId = paste0(' -N', maxSpotId)
+    opt_minSpotId = paste(' -N ', minSpotId, sep = "")
   }
   
   ## MinReadLength
@@ -130,7 +129,6 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   }
   
   ## Zipformat
-  
   if( is.element(zipFormat, c('gzip', 'bzip2', 'stdout') ) )
     {opt_zipFormat = paste(' --', zipFormat, sep = '')
     if(zipFormat == 'stdout')
@@ -138,6 +136,7 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   }
   else 
     opt_zipFormat = ''
+  print(opt_zipFormat)
   
   ## Split styles (split3, spotgroup, readfilter)
   if( is.element(splitStyle, c( 'split-3', 'spot--group','read-filter'))) {
@@ -145,6 +144,7 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   } else {
     opt_splitStyle= ''
   }
+  print(opt_splitStyle)
   
   ## Skip technical
   if(skip_technical){
@@ -161,7 +161,7 @@ fastqDump <- function( sraAccession, outdir = getwd(), stdout = FALSE, split_fil
   if (unaligned){
     opt_align <- paste(opt_align, '--unaligned')
   }
-  
+
 #   
 #   ### Debugging Help 
 #     print(paste( fastqDumpCMD,

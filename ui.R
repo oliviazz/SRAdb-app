@@ -14,7 +14,7 @@ for( Lib in Libs ) {
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   tags$head(
                     tags$style(HTML(".shiny-progress .bar {
-                                                  background-color: #FF0000;
+                                                  background-color: #66FF00;
                                                   .opacity = 1;
                                                   }
                                     .shiny-progress .progress {
