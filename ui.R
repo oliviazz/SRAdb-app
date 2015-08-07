@@ -1,4 +1,4 @@
-#ui.R    SRAdb-app
+#ui.R SRAdb-app
 #Olivia Zhang  July 9, 2015
 #======================#
 Libs = c('shiny', 'DT', 'SRAdb', 'shinyBS', 'Rgraphviz', 'shinythemes', 'shinyFiles')

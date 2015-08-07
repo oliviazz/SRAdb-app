@@ -35,6 +35,8 @@ shinyServer(function(input,output,session){
     isolate({
       dataType <- input$dataType
       searchTerms <- input$searchTerms
+      if(grepl('"', searchTerms))
+        searchTerms = paste0('\"',substring(searchTerms, 2, nchar(searchTerms) - 1), '\"')
       if(dataType == "acc_table"){
         n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                      out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
@@ -43,6 +45,7 @@ shinyServer(function(input,output,session){
       else{
       n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                     out_types = dataType, acc_only = FALSE)
+    
         }
       })
  })
@@ -75,7 +78,8 @@ shinyServer(function(input,output,session){
                    "$(this.api().table().header()).css
                    ({'background-color': '#6AB4FF', 'color': '#fff'});",
                    "}"
-                 ))                 
+                 )
+                 )                 
   )
   
 ## Intrument Model Table on Front Page---------------------------------
@@ -200,7 +204,7 @@ shinyServer(function(input,output,session){
     input$actionButton 
     input$reload
     progress <- shiny::Progress$new()
-    progress$set(message = 'Loading Search Results . . . ', value = 5)
+    progress$set(message = 'Loading Operation Results . . . ', value = 5)
     on.exit(progress$close())
     isolate({
       operationType = input$operationType
@@ -224,9 +228,10 @@ shinyServer(function(input,output,session){
                     
                     fqinfoLink = fqinfo$ftp
                     fqinfo$ftp <- createLink(fqinfoLink, paste("Download", fqinfo$run, "FASTQ file"))
-                    newBottom <- fqinfo[,1:5] 
-                    newTop <- fqinfo[,6:11]
-                    resultTable <- cbind(newTop, newBottom)
+                    newTop<- fqinfo[,1:5] 
+                    newBottom<- fqinfo[,9:11]
+                    newFirst <- fqinfo[7]
+                    resultTable <- cbind(newFirst,newTop, newBottom)
                   },
                 
                 "srainfo" = {
@@ -322,7 +327,7 @@ shinyServer(function(input,output,session){
     }
     else
       createAlert(session, "TBalert", alertId = "TBnoAction", title = "No results to display",
-                  content = "Please select rows and select operation to perfrom operation", append = F,
+                  content = "Please select rows and select operation to perform operation", append = F,
                   style = "danger")
   })
 
@@ -370,13 +375,13 @@ shinyServer(function(input,output,session){
   })
 #-Get Outdir path
   getOutdirpath <- reactive({
-    run_code <- input$mainTable_row_last_clicked
     roots = c(wd='/Users')
     path <- parseDirPath(roots , input$outdirButton)
+    #restore.session("RSession.Rda")
     if(length(path) == 0)
       return(getwd())
     else
-      return(parseDirPath(roots , input$outdirButton))
+      return(path)
   })
 #-Link button
   shinyDirChoose("outdirButton", input = input, session = session,
@@ -410,6 +415,7 @@ observeEvent(input$viewFiles, {
 
 })#END SERVER 
 ##
+
 # Alert System:
 # Automatically shows noSearch (search results tab) and noAction(on operaton tab) results 
 # Valid search, removes no search results alert
@@ -422,7 +428,7 @@ observeEvent(input$viewFiles, {
 ##################################### OTHER FUNCTUONS ################################################
 ######################################################################################################
 
-# Clickable HTML Link Given URL(val)-----------------------------
+# get HTML Link -------------------------------------------------
 createLink <- function(val, linkdisplay) {
   sprintf('<a href="%s" target="_blank" 
           class="btn btn-link"> %s </a>',val,linkdisplay)
@@ -436,7 +442,7 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
   
   #defining correct indices 
-  sra_fields_indice <- list( srabrief = c(20,19,58,7,8,22,47,72), #sample title include 
+  sra_fields_indice <- list( srabrief = c(7,22,47,20,19,58,70,72), #sample title include 
                     run = seq(which(sra_fields == "run_ID") + 1,
                               which(sra_fields == "experiment_ID") - 1),
                     experiment = seq(which(sra_fields == "experiment_ID") + 1, 
