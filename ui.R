@@ -12,10 +12,9 @@ for( Lib in Libs ) {
 }
 #======================#
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
-                  tags$head(
-                    tags$style(HTML(".shiny-progress .bar {
-                                                  background-color: #66FF00;
-                                                  .opacity = 1;
+                  tags$head(tags$style(HTML(".shiny-progress .bar {
+                                                  background-color: #43B33C;
+                                                  .opacity = .8;
                                                   }
                                     .shiny-progress .progress {
                                                   height:6px;
@@ -36,8 +35,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                           "Submission" = "submission",
                                           "Sample" = "sample", "Run" = "run", 
                                           "Full SRA" = "sra",
-                                           "Accession Codes" = "acc_table"), selected = "srabrief"
-                )
+                                           "Accession Codes" = "acc_table"), selected = "srabrief")
             ),
             column(1,
                 br(),br(),
@@ -46,10 +44,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
             ),
             column(3,
                    br(), br(),
-                   h6(textOutput("smartSearch"))
+                   h6("Advanced Search [?]", id = "smartSearch")
                    )
-          )),
-        
+          )),      
   br(),
        tabsetPanel( id = "tabSet",
          tabPanel( "Home", value = "home",
@@ -74,12 +71,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
          tabPanel( "Search Results", value = "search_results",
                    br(),
                    bsAlert("TBalert"),
-                conditionalPanel( "input.searchButton > 0",
+                   conditionalPanel( "input.searchButton > 0",
                                   wellPanel(
                                     fluidRow(
                                       column(12,
                                            fluidRow(
-                                              column(2, offset = 1, (h6(textOutput('selectHelp')))),
+                                              column(2, offset = 1, (h6("Select Rows [?]", id = 'selectHelp'))),
                                               column(4,
                                                     selectizeInput("operationType", label = NULL,
                                                                    choices = list("Get All Related Accession Codes" = "related_acc",
@@ -106,15 +103,15 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                             column(2,
                                                     downloadButton("downloadFullSRA", label = " Export Full SRA Table")
                                              )
-                                           ),
-                                           conditionalPanel(condition = "input.operationType == 'fastqdump'",
+                                            ),
+                                            conditionalPanel(condition = "input.operationType == 'fastqdump'",
                                                             wellPanel(
                                                               fluidRow(
-                                                                column(3,
-                                                                       radioButtons("fqd_splitStyle", label = "Output Format:",
+                                                              column(2,
+                                                                       radioButtons("fqd_zipFormat", label = "Output Format:",
                                                                                     choices = list(" .gzip" = "gzip", ".bzip2" = "bzip2", ".fastq" = "fastq"), 
-                                                                                    selected = "gzip"),
-                                                                       selectizeInput("fqd_options", label = "FastQ Dump Options:",
+                                                                                    selected = "gzip"), 
+                                                                       selectizeInput("fqd_options", label = " Options:",
                                                                                       multiple = TRUE,
                                                                                       choices = list("Split Spot" = "split_spot",
                                                                                                      "Skip Technical" = 'skip_technical',
@@ -123,45 +120,44 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                                      "Fasta" = "fasta",
                                                                                                      "Dump Base" = "dumpbase", 
                                                                                                      "Dump cs" = "dumpcs"),
-                                                                                      options = list(placeholder = 'Click to specify options')),
-                                                                       checkboxInput("fullFile", label = strong("Get Entire File"), value = TRUE),
-                                                                       conditionalPanel(condition = "!input.fullFile",
-                                                                                        fluidRow(column(6, numericInput('fqd_min', label = "Min SpotID", value = NULL)
-                                                                                                        ),
-                                                                                                 column(6,numericInput('fqd_max', label = "Max SpotID", value = NULL)
-                                                                                                        )
-                                                                                                 )
-                                                                       )
+                                                                                      options = list(placeholder = 'Click to show:'))
+                                                                       
+                                                                       
                                                                 ),
-                                                               column(5, 
-                                                                      fluidRow(
-                                                                        column(10,textInput('show_outdirpath', label = "Download Location:"),
-                                                                               textInput('fqdPlaces', label = "Fastq-dump Command Location:", value = '')
-                                                                               ),
-                                                                                                                                
-                                                                        column(1, br(), 
-                                                                               shinyDirButton("outdirButton",title = "Choose Download Directory for Fastq Files",
-                                                                                                label = "Browse",
-                                                                                                class = "btn btn-link")
-                                                                               )
-                                                                        )
-                                                                      ),
-                                                                column(4, 
+                                                              column(3, 
+                                                                     column(1),
+                                                                     column(11,
+                                                                     radioButtons("fullFile", label = NULL, choices = c("Get Entire File" = "entire", "Custom Range" = "range")) ,
+                                                                     conditionalPanel(condition = "input.fullFile == 'range'",
+                                                                                      numericInput('fqd_min', label = "Min SpotID", value = NULL),
+                                                                                      numericInput('fqd_max', label = "Max SpotID", value = NULL)
+                                                                     ))
+                                                              ),
+                                                                column(4,
                                                                        fluidRow(
-                                                                          column(2),
-                                                                          column(10,bsAlert('fqdalert')
-                                                                                )
+                                                                              column(11,
+                                                                                textInput('show_outdirpath', label = "Download Directory:"),
+                                                                                shinyDirButton("outdirButton",title = "Choose Download Directory",
+                                                                                               label = "Browse Download Directory ", class = "btn-block btn-link"),
+                                                                                br(),
+                                                                                textInput('fqdPlaces', label = "Fastq-dump Command Location:", value = ''))
                                                                        ),
+                                                                       br()
+                                                                       
+                                                                        
+                                                                ),
+                                                              
+                                                                
+                                                                column(3,
                                                                        br(),
-                                                                       fluidRow(
-                                                                          column(4),
-                                                                          column(8,  actionButton("viewFiles", label = "View Download Directory")
-                                                                                )
-                                                                       )
+                                                                       bsButton("viewFiles", label = "View Download Directory", disabled = TRUE,block = TRUE))
+                                                               ),
+                                                                fluidRow(bsAlert('fqdalert')
+                                                                )
+                                                                     
                                                                 ))
                                                           ))
-                                      )) #end well Panel
-                                  )),
+                                      )), #end well Panel
                 br(),
                 DT::dataTableOutput('mainTable')
                 ),
