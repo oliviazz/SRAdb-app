@@ -18,7 +18,7 @@ if(!file.exists('SRAmetadb.sqlite'))
   sqlfile <<- getSRAdbFile()
 sra_con<- dbConnect(dbDriver("SQLite"), 
                     sra_dbname)
-source('copyfastqdump_v1.R')
+source('fastqdump_v1.R')
 #============================================================================#
 
 
@@ -35,16 +35,26 @@ shinyServer(function(input,output,session){
     isolate({
       dataType <- input$dataType
       searchTerms <- input$searchTerms
-      if(grepl('"', searchTerms))
-        searchTerms = paste0('\"',substring(searchTerms, 2, nchar(searchTerms) - 1), '\"')
+      
+      if(grepl("'", searchTerms)){
+        createAlert(session, "TBalert", alertId = "quoteError", title = "Error",
+          content = " Single quotes not accepted. Please use Double quotes to search for a phrase", style = "danger")
+        return()
+       }
+       else{ closeAlert(session, "quoteError")
+      }
+      if(grepl('"', searchTerms)){
+        searchTerms = paste0('\"',substring(searchTerms, 2, nchar(searchTerms) -1 ), '\"')
+        print(searchTerms)
+      }
       if(dataType == "acc_table"){
-        n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
+        searchResults <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                      out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
-        n <- n[,c("study","experiment","sample","run", "submission")]
+        searchResults <- n[,c("study","experiment","sample","run", "submission")]
       }
       else{
-      n <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
-                    out_types = dataType, acc_only = FALSE)
+      searchResults <- getSRA_1(search_terms = searchTerms,
+                                sra_con = sra_con,out_types = dataType)
     
         }
       })
@@ -79,19 +89,34 @@ shinyServer(function(input,output,session){
                    ({'background-color': '#6AB4FF', 'color': '#fff'});",
                    "}"
                  )
+                
                  )                 
   )
   
 ## Intrument Model Table on Front Page---------------------------------
   output$instr_models <- renderDataTable({
-    dt <- read.csv("SRAinstrument_counts.xls", sep= ",", header = TRUE)
-  },
-  rownames = FALSE,options = list(dom = "T"),
-  colnames = c("Count:", "Instrument Model" )
+      if( file.exists('sra_counts.txt')) {
+        dt <- read.delim("sra_counts.txt" )
+      } else {
+        getTableCounts <- function(tableName,conn) {
+          sql <- sprintf("select count(*) from %s",tableName)
+          return(dbGetQuery(conn,sql)[1,1])
+        }
+        dt <- do.call(rbind,sapply(c('submission', 'study', 'sample',
+                                     'experiment', 'run'),
+                                   getTableCounts, sra_con, simplify=FALSE))
+      }
+      df <- as.data.frame(dt)
+      rownames(df) <- toupper(rownames(df))
+      colnames(df) <- c("Count")
+      write.table(df, file = 'sra_counts.txt', sep="\t")
+      df
+    },
+  options = list(dom = "T"),rownames = TRUE
   )
  
 #%%%%%%%%%%%%%%%%%%% Handling Operation Results %%%%%%%%%%%%%%%%%%%%%%%  
-  
+ 
 ## Trigger Operation when ActionButton Pressed ----------------------------
   observeEvent(input$actionButton,{
     if(is.null(getFullTable())){
@@ -140,6 +165,23 @@ shinyServer(function(input,output,session){
                   run_code <- n_selected[,"run"]
                   outdir <- input$show_outdirpath
                   
+                  if (!file.exists(outdir)){
+                    createAlert(session, "fqdalert", alertId = "noDir", content = "Invalid out directory
+                                selected. Please enter a valid directory.", style = "danger",append = TRUE)
+                    return()
+                  } 
+                  if(length(run_code) > 1){
+                    createAlert(session, "fqdalert", "fqdmultiple", title = NULL,
+                                content = "Multiple runs are selected: please choose only 
+                                one to perform FASTQ dump.", style = "danger",append = F)
+                    return()
+                  }
+                  else if(length(run_code) == 0 ){
+                    createAlert(session, "fqdalert",alertId = "fqdnoRows" ,title = NULL,
+                                content = "No rows selected: please select one row to perform operation on.",
+                                style = "danger", append = F)
+                    return()
+                  }
                   if(is.null(fastqDumpCMD ) || !grepl('fastq-dump',fastqDumpCMD)){
                       createAlert(session, anchorId = 'fqdalert', title = "Missing FASTQ Dump Command",
                                   content = paste0("Please indicate the location to the FASTQ-dump command on your device. Create a link to the command using 'sudo'. 
@@ -158,23 +200,9 @@ shinyServer(function(input,output,session){
                                 or check 'Entire File' option.", style = "danger", append = FALSE)
                     return()
                   }
-                  
-                  if(length(run_code) > 1){
-                    createAlert(session, "fqdalert", "fqdmultiple", title = NULL,
-                                content = "Multiple runs are selected: please choose only 
-                                one to perform FASTQ dump.", style = "danger",append = F)
-                    return()
-                  }
-                  if(length(run_code) == 0 ){
-                    createAlert(session, "fqdalert",alertId = "fqdnoRows" ,title = NULL,
-                                content = "No rows selected: please select one row to perform operation on.",
-                                style = "danger", append = F)
-                    return()
-                  }
-                  
-                    message <- capture.output(
-                      fastqDump(run_code, minSpotId = minSpotId, maxSpotId = maxSpotId,
-                                outdir = outdir, 
+                  message <- capture.output(
+                      fastqDump(run_code,outdir = outdir, minSpotId = minSpotId,
+                                maxSpotId = maxSpotId,
                                 zipFormat = zipFormat,
                                 split_spot = is.element("split_splot", options),
                                 skip_technical = is.element("split_splot", options),
@@ -237,7 +265,6 @@ shinyServer(function(input,output,session){
                 "srainfo" = {
                     run_codes <- as.vector(n_selected[,"run"])
                     srainfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
-                    print(srainfo$ftp)
                     srainfo$ftp <- createLink(srainfo$ftp, paste("Download SRA for ",srainfo$run))
                     resultTable <- srainfo
                   },
@@ -251,7 +278,6 @@ shinyServer(function(input,output,session){
                       }
                     else
                       codeVector = n_selected[,yesAcc[1]]
-                    print(codeVector)
                     n <- listSRAfile( codeVector, sra_con, 
                                     fileType = 'sra')
                     n$ftp <- createLink(n$ftp, "Download SRA") 
@@ -321,7 +347,7 @@ shinyServer(function(input,output,session){
               content = "Please select rows and select operation to display results", append = F)
   
   observeEvent( input$actionButton, {
-    if(input$operationType != '' && length(input$mainTable_rows_selected) > 0){
+    if((input$operationType != '' && length(input$mainTable_rows_selected ) > 0)){
       closeAlert(session, alertId = "TBnoAction")
       closeAlert(session, alertId = "noAction")
     }
@@ -377,7 +403,6 @@ shinyServer(function(input,output,session){
   getOutdirpath <- reactive({
     roots = c(wd='/Users')
     path <- parseDirPath(roots , input$outdirButton)
-    #restore.session("RSession.Rda")
     if(length(path) == 0)
       return(getwd())
     else
@@ -412,8 +437,10 @@ observeEvent(input$viewFiles, {
                                 <li><em> term* </em> for all results that begin with term</li>
                                 </ul>')),
            trigger = 'click')  
+ 
+})
 
-})#END SERVER 
+#END SERVER 
 ##
 
 # Alert System:
@@ -442,7 +469,7 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
   
   #defining correct indices 
-  sra_fields_indice <- list( srabrief = c(7,22,47,20,19,58,70,72), #sample title include 
+  sra_fields_indice <- list( srabrief = c(9,7,11,22,47,20,19,70,72,58,59), #sample title include 
                     run = seq(which(sra_fields == "run_ID") + 1,
                               which(sra_fields == "experiment_ID") - 1),
                     experiment = seq(which(sra_fields == "experiment_ID") + 1, 
