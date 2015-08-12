@@ -1,0 +1,11 @@
+Package: ShinySRAdb
+Type: Package
+Title: A shiny application wrapper around the SRAdb package
+Version: 0.1.0
+Date: 2015-08-12
+Author: Olivia Zhang
+Maintainer: Olivia Zhang <livya.zhang@gmail.com>
+Description: A shiny application wrapper around the SRAdb package
+Depends: shiny, DT, shinyFiles, shinyBS, SRAdb, shinythemes
+License: MIT
+

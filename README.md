@@ -1,12 +1,30 @@
 -Author: Olivia Zhang 
-## SRAdb Web Application:
+# SRAdb Web Application:
 
-##### To Use:
-Get files and move the SRAdb sqlite file (downloaded using getSRAdbFile()) to the App's directory.
+## Installation
 
-#####Uses packages: 
-SRAdb, shinythemes, shinyFiles, DT, RgraphViz, R.utils
-#####Functions:
+```
+library(devtools)
+install_github('seandavi/SRAdb-app')
+```
+
+## Usage
+
+```
+library(ShinySRAdb)
+ShinySRAdb()
+```
+
+## Dependencies
+
+- SRAdb
+- shinythemes
+- shinyFiles
+- DT
+- RgraphViz
+- R.utils
+
+## Functions:
 
 - Query Sequence Repository Archive Using Advanced Text Search
 - Get info about SRA and FASTQ data files 
