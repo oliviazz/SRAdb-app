@@ -3,7 +3,7 @@
 
 ## Overview slides
 
-http://www.slideshare.net/seandavi/shinysradb-an-r-package-using-shiny-to-wrap-the-sradb-bioconductor-package
+- [Available here](http://www.slideshare.net/seandavi/shinysradb-an-r-package-using-shiny-to-wrap-the-sradb-bioconductor-package)
 
 ## Installation
 
