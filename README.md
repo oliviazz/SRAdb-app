@@ -5,7 +5,7 @@
 
 ```
 library(devtools)
-install_github('seandavi/SRAdb-app')
+install_github('oliviazz/SRAdb-app')
 ```
 
 ## Usage
