@@ -21,9 +21,7 @@ sra_con<- dbConnect(dbDriver("SQLite"),
 source('fastqdump_v1.R')
 #============================================================================#
 
-
 shinyServer(function(input,output,session){
- 
 
 ## Search Table from search terms and data type-------------------------- 
   getFullTable <- reactive({
@@ -35,22 +33,11 @@ shinyServer(function(input,output,session){
     isolate({
       dataType <- input$dataType
       searchTerms <- input$searchTerms
-      
-      if(grepl("'", searchTerms)){
-        createAlert(session, "TBalert", alertId = "quoteError", title = "Error",
-          content = " Single quotes not accepted. Please use Double quotes to search for a phrase", style = "danger")
-        return()
-       }
-       else{ closeAlert(session, "quoteError")
-      }
-      if(grepl('"', searchTerms)){
-        searchTerms = paste0('\"',substring(searchTerms, 2, nchar(searchTerms) -1 ), '\"')
-        print(searchTerms)
-      }
+      searchTerms=gsub('“','"',searchTerms)
       if(dataType == "acc_table"){
         searchResults <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
                      out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
-        searchResults <- n[,c("study","experiment","sample","run", "submission")]
+        searchResults <- searchResults[,c("study","experiment","sample","run", "submission")]
       }
       else{
       searchResults <- getSRA_1(search_terms = searchTerms,
@@ -129,18 +116,14 @@ shinyServer(function(input,output,session){
     n_selected <- n[selected_rows,]
     if(length(selected_rows) == 0 || operation == '')
       return
-    if(is.element(operation, c('srainfo', 'fqinfo', 'fastqdump')) 
+    if(operation == "fastqdump"
          && !is.element('run', colnames(n_selected))){
-        createAlert(session, "alert", "notRun", title = "Error:",
-                    content = "Please select data of type 'run'.",style = "danger",append = FALSE)
         createAlert(session, "fqdalert", "fqdnotRun", title = NULL,
                     content = "Please select data of type 'run'.",style = "danger",append = FALSE)
-        if(operation == 'fastqdump'){
           return()
         }
-    }
     else
-    { closeAlert(session, "notRun")
+    { 
       closeAlert(session, "fqdnotRun")
     }
     switch( operation,
@@ -243,17 +226,24 @@ shinyServer(function(input,output,session){
       else{
         n <- getFullTable()
         n_selected <- n[selected_rows,]
-        if (is.element(operationType, c('srainfo', 'fqinfo', 'fastqdump')) 
+        if (operationType == 'fastqdump' 
             && !is.element('run', colnames(n_selected))){
           return()
         }
+        acc_possible <- c("run", "study", "experiment", "sample", "submission" )
+        yesAcc = intersect(acc_possible,colnames(n_selected))
+        
+        if('run'%in%colnames(n_selected))
+          codeVector = as.vector(n_selected[,"run"])
+        else
+          codeVector = as.vector(n_selected[,yesAcc[1]])
         
         switch( input$operationType,
                 
                 "fqinfo" = {
-                    run_codes <- as.vector(n_selected[,"run"])
-                    fqinfo <- getFASTQinfo(in_acc = run_codes, sra_con = sra_con)
-                    
+                    print('hello')
+                    fqinfo <- getFASTQinfo(in_acc = codeVector, sra_con = sra_con)
+                    print(fqinfo)
                     fqinfoLink = fqinfo$ftp
                     fqinfo$ftp <- createLink(fqinfoLink, paste("Download", fqinfo$run, "FASTQ file"))
                     newTop<- fqinfo[,1:5] 
@@ -263,21 +253,13 @@ shinyServer(function(input,output,session){
                   },
                 
                 "srainfo" = {
-                    run_codes <- as.vector(n_selected[,"run"])
-                    srainfo <- getSRAinfo(run_codes, sra_con = sra_con, sraType = "sra")
+                    
+                    srainfo <- getSRAinfo(codeVector, sra_con = sra_con, sraType = "sra")
                     srainfo$ftp <- createLink(srainfo$ftp, paste("Download SRA for ",srainfo$run))
                     resultTable <- srainfo
                   },
                 
                 "related_acc" = {
-                    acc_possible <- c("run", "study", "experiment", "sample", "submission" )
-                    yesAcc = intersect(acc_possible,colnames(n_selected))
-                    if('run'%in%colnames(n_selected))
-                      {
-                        codeVector = n_selected[,"run"]
-                      }
-                    else
-                      codeVector = n_selected[,yesAcc[1]]
                     n <- listSRAfile( codeVector, sra_con, 
                                     fileType = 'sra')
                     n$ftp <- createLink(n$ftp, "Download SRA") 
