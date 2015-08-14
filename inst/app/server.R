@@ -18,7 +18,7 @@ if(!file.exists('SRAmetadb.sqlite'))
   sqlfile <<- getSRAdbFile()
 sra_con<- dbConnect(dbDriver("SQLite"), 
                     sra_dbname)
-source('fastqdump_v1.R')
+#source('fastqdump_v1.R')
 #============================================================================#
 
 shinyServer(function(input,output,session){
