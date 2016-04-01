@@ -48,7 +48,8 @@ shinyServer(function(input,output,session){
  })
   
 ## Results Table with Options--------------------------------------
-  output$mainTable <- DT::renderDataTable({
+  output$mainTable <- DT::renderDataTable(
+  {
     input$reload
     input$searchButton
     isolate({
@@ -57,27 +58,32 @@ shinyServer(function(input,output,session){
         table  <- getFullTable() 
       }
     })
-  }, rownames = TRUE,
+  },
+  rownames = TRUE,
   escape = FALSE,
   class = 'order-column nowrap',
   extensions = c('ColVis','ColReorder', 'TableTools'),
-  options = list(dom = 'CTRf<"clear">lirSpt',
-                 scrollX = TRUE, scrollCollapse = TRUE,
-                 autoWidth = TRUE,orderClasses = TRUE,
-                 colReorder = list(realtime = TRUE),
-                 lengthMenu = c(20,50, 100, 200),pageLength = 50,
-                 searchHighlight = TRUE,
-                 server = FALSE,stateSave = TRUE,
-                 tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
-                                   aButtons = list('print')),
-                 initComplete = JS(
-                   "function(settings, json) {",
-                   "$(this.api().table().header()).css
-                   ({'background-color': '#6AB4FF', 'color': '#fff'});",
-                   "}"
-                 )
-                
-                 )                 
+  options = list(
+    dom = 'CTRf<"clear">lirSpt',
+    scrollX = TRUE,
+    scrollCollapse = TRUE,
+    autoWidth = TRUE,
+    orderClasses = TRUE,
+    colReorder = list(realtime = TRUE),
+    lengthMenu = c(20,50, 100, 200),
+    pageLength = 50,
+    searchHighlight = TRUE,
+    server = FALSE,stateSave = TRUE,
+    tableTools = list("sSwfPath" = copySWF("www"),
+                      pdf = TRUE,
+                      aButtons = list('print')),
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css
+      ({'background-color': '#6AB4FF', 'color': '#fff'});",
+      "}")
+    ),    
+    filter = 'top'
   )
   
 ## Intrument Model Table on Front Page---------------------------------
