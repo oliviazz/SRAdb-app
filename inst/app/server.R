@@ -28,23 +28,27 @@ shinyServer(function(input,output,session){
     progress$set(message = 'Loading Search Results . . . ', value = 5)
     on.exit(progress$close())
     input$searchButton
-    
     isolate({
       dataType <- input$dataType
       searchTerms <- input$searchTerms
       searchTerms=gsub('“','"',searchTerms)
       if(dataType == "acc_table"){
-        searchResults <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
-                     out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
+        searchResults <- getSRA_1(
+          search_terms = searchTerms, sra_con = sra_con,
+          out_types = c("study","experiment","sample","run", "submission"),
+          acc_only = TRUE
+        )
         searchResults <- searchResults[,c("study","experiment","sample","run", "submission")]
       }
       else{
-      searchResults <- getSRA_1(search_terms = searchTerms,
-                                sra_con = sra_con,out_types = dataType)
-    
-        }
-      })
- })
+        searchResults <- getSRA_1(
+          search_terms = searchTerms,
+          sra_con = sra_con,
+          out_types = dataType
+        )
+      }
+    })
+  })
   
 ## Results Table with Options--------------------------------------
   output$mainTable <- DT::renderDataTable(
@@ -483,8 +487,12 @@ createLink <- function(val, linkdisplay) {
 }
 
 # Modified getSRA------------------------------------------------
-getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study", 
-                                      "experiment", "sample", "run", "srabrief"), sra_con, acc_only = FALSE) 
+getSRA_1 <- function (
+  search_terms,
+  out_types = c("sra", "submission", "study", "experiment", "sample", "run", "srabrief"),
+  sra_con,
+  acc_only = FALSE
+) 
 {
   out_types <- match.arg(out_types, several.ok = T)
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
