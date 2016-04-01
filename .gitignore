@@ -1,4 +1,6 @@
 *~
 
+www/
+
 *.sqlite
 inst/app/sra_counts.txt
