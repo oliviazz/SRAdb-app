@@ -64,7 +64,7 @@ shinyServer(function(input,output,session){
   },
   rownames = TRUE,
   escape = FALSE,
-  class = 'order-column nowrap',
+  #class = 'order-column nowrap',
   extensions = c('ColVis','ColReorder', 'TableTools'),
   options = list(
     dom = 'CTRf<"clear">lirSpt',
@@ -76,7 +76,8 @@ shinyServer(function(input,output,session){
     lengthMenu = c(20,50, 100, 200),
     pageLength = 50,
     searchHighlight = TRUE,
-    server = FALSE,stateSave = TRUE,
+    server = FALSE,
+    stateSave = TRUE,
     tableTools = list("sSwfPath" = copySWF("www"),
                       pdf = TRUE,
                       aButtons = list('print')),
