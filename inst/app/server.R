@@ -14,10 +14,9 @@ if( ! file.exists("www") ) {
 }
 
 sra_dbname <- 'SRAmetadb.sqlite'	
-if(!file.exists('SRAmetadb.sqlite'))
+if(!file.exists(sra_dbname))
   sqlfile <<- getSRAdbFile()
-sra_con<- dbConnect(dbDriver("SQLite"), 
-                    sra_dbname)
+sra_con <- dbConnect(dbDriver("SQLite"), sra_dbname)
 #source('fastqdump_v1.R')
 #============================================================================#
 
@@ -201,8 +200,8 @@ shinyServer(function(input,output,session){
                                 dumpcs = is.element("dumpcs", options),
                                 fastqDumpCMD = fastqDumpCMD
                       ))
-                    message <- paste(gsub('"', "",message[1]), ' in ', outdir, sep="",collapse="")
-                    start = gregexpr(pattern ='Written', message)
+                    message <- sprintf("%s in %s", gsub('"', "", message[1]), outdir)
+                    start = gregexpr(pattern='Written', message)
                     message = substring(message, start, nchar(message))
                     createAlert(session, "fqdalert",title = NULL,
                                 content = HTML(paste("<font size='3'><b>FASTQ Dump Completed:</b></font>",message)), style = "success", append = F)
@@ -329,38 +328,61 @@ shinyServer(function(input,output,session){
       closeAlert(session, "noSearch")}
     )
   
-  createAlert(session, "TBalert", alertId = "noSearch", title = "No results to display",
-              content = "Please enter search terms to display results", append = F)
-  createAlert(session, "alert", alertId = "noAction", title = "No results to display",
-              content = "Please select rows and select operation to display results", append = F)
+  createAlert(
+    session, "TBalert",
+    alertId = "noSearch",
+    title = "No results to display",
+    content = "Please enter search terms to display results",
+    append = FALSE)
+  createAlert(
+    session, "alert",
+    alertId = "noAction",
+    title = "No results to display",
+    content = "Please select rows and select operation to display results",
+    append = FALSE
+  )
   
-  observeEvent( input$actionButton, {
-    if((input$operationType != '' && length(input$mainTable_rows_selected ) > 0)){
-      closeAlert(session, alertId = "TBnoAction")
-      closeAlert(session, alertId = "noAction")
+  observeEvent(
+    input$actionButton,
+    {
+      if((input$operationType != '' && length(input$mainTable_rows_selected ) > 0)){
+        closeAlert(session, alertId = "TBnoAction")
+        closeAlert(session, alertId = "noAction")
+      }
+      else
+        createAlert(
+          session, "TBalert",
+          alertId = "TBnoAction",
+          title = "No results to display",
+          content = "Please select rows and select operation to perform operation",
+          append = FALSE,
+          style = "danger")
     }
-    else
-      createAlert(session, "TBalert", alertId = "TBnoAction", title = "No results to display",
-                  content = "Please select rows and select operation to perform operation", append = F,
-                  style = "danger")
-  })
+  )
 
-  observeEvent(input$operationType == "eGraph",{
-    if(input$operationType == "eGraph"){
-    createAlert(session, alertId = "eGraphWarning", anchorId = "TBalert", title = "Warning:", content = 
-                  "Entity Graph creation for large data sets,including those of type STUDY or SUBMISSION, will take a 
-                long time and is not recommended.", style = "warning")
+  observeEvent(
+    input$operationType == "eGraph",
+    {
+      if(input$operationType == "eGraph"){
+      createAlert(
+        session,
+        alertId = "eGraphWarning",
+        anchorId = "TBalert",
+        title = "Warning:",
+        content = "Entity Graph creation for large data sets, including those of type STUDY or SUBMISSION, will take a long time and is not recommended.",
+        style = "warning")
+      }
+      else{
+        closeAlert(session, alertId = "eGraphWarning")
+      }
     }
-    else{
-      closeAlert(session, alertId = "eGraphWarning")
-    }
-  })
+  )
 
 ##Download handler ---------------------------------------- 
   #-Download full table
   output$downloadFullSRA<- downloadHandler(
     filename  = function() { 
-      a <- paste0(Sys.Date(),'-',input$searchTerms,'FullResults.csv')
+      a <- sprintf("%s-%sFullResults.csv", Sys.Date(), input$searchTerms)
       a <- gsub(" ","",a) 
       },
     content = function(file){
@@ -371,7 +393,7 @@ shinyServer(function(input,output,session){
  #-Download selected rows 
   output$downloadSelected <- downloadHandler(
     filename  = function() { 
-      a <- paste0(Sys.Date(),'-',input$searchTerms,'Results.csv')
+      a <- sprintf("%s-%sResults.csv", Sys.Date(), input$searchTerms)
       a <- gsub(" ","",a) 
     },
     content = function(file){
@@ -414,17 +436,28 @@ observeEvent(input$viewFiles, {
 })  
 
 ##Help-Text Popovers-----------------------------------------------------------------------------  
- addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row
-          to select it, then choose an operation for it and press 'Submit'."), trigger = 'click')
+addPopover(
+  session,
+  "selectHelp",
+  title = NULL,
+  content = "Click on a row to select it, then choose an operation for it and press 'Submit'.",
+  trigger = 'click'
+)
 
- addPopover(session, "smartSearch", title = NULL,
-           content = HTML(paste('<b>Smart Search Options: </b><ul>
-                                <li><em>OR</em> to combine searches</li>
-                                <li><em>column</em>:<em>value</em> for all reslts with given column value</li> 
-                                <li><em>"Search Terms"</em> for full phrase search</li>
-                                <li><em> term* </em> for all results that begin with term</li>
-                                </ul>')),
-           trigger = 'click')  
+addPopover(
+  session,
+  "smartSearch",
+  title=NULL,
+  content=HTML(
+    '<b>Smart Search Options: </b><ul>
+    <li><em>OR</em> to combine searches</li>
+    <li><em>column</em>:<em>value</em> for all reslts with given column value</li> 
+    <li><em>"Search Terms"</em> for full phrase search</li>
+    <li><em> term* </em> for all results that begin with term</li>
+    </ul>'
+  ),
+  trigger='click'
+)
  
 })
 
@@ -457,18 +490,25 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
   
   #defining correct indices 
-  sra_fields_indice <- list( srabrief = c(9,7,11,22,47,20,19,70,72,58,59), #sample title include 
-                    run = seq(which(sra_fields == "run_ID") + 1,
-                              which(sra_fields == "experiment_ID") - 1),
-                    experiment = seq(which(sra_fields == "experiment_ID") + 1, 
-                              which(sra_fields == "sample_ID") - 1), 
-                    sample = seq(which(sra_fields == "sample_ID") + 1, 
-                                 which(sra_fields == "study_ID") - 1), 
-                    study = seq(which(sra_fields == "study_ID") + 1,
-                                which(sra_fields == "submission_ID") - 1), 
-                    submission = seq(which(sra_fields == "submission_ID") +1,
-                                length(sra_fields)),
-                    sra = c(6:75))
+  sra_fields_indice <- list(
+    srabrief = c(9,7,11,22,47,20,19,70,72,58,59), #sample title include 
+    run = seq(
+      which(sra_fields == "run_ID") + 1,
+      which(sra_fields == "experiment_ID") - 1),
+    experiment = seq(
+      which(sra_fields == "experiment_ID") + 1,
+      which(sra_fields == "sample_ID") - 1),
+    sample = seq(
+      which(sra_fields == "sample_ID") + 1,
+      which(sra_fields == "study_ID") - 1),
+    study = seq(
+      which(sra_fields == "study_ID") + 1,
+      which(sra_fields == "submission_ID") - 1), 
+    submission = seq(
+      which(sra_fields == "submission_ID") + 1,
+      length(sra_fields)),
+    sra = c(6:75)
+  )
   
   if (is.element("sra", out_types)) {
     sra_fields_indice_1 <- sra_fields_indice[["sra"]]
@@ -482,21 +522,20 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
       sra_fields_indice_1 <- sra_fields_indice[[type]]
       select_fields = c(select_fields, sra_fields[sra_fields_indice_1]) #add on each type
       if(type != 'srabrief')
-           not_null = c(not_null, paste(type, "_accession IS NOT NULL ", 
-                                   sep = ""))
+           not_null = c(not_null, sprintf("%s_accession IS NOT NULL ", type))
       else
-        not_null = c(not_null, paste('experiment', "_accession IS NOT NULL ", 
-                                    sep = ""))
+        not_null = c(not_null, 'experiment_accession IS NOT NULL ')
     }
-    not_null_str = paste(" AND (", paste(not_null, collapse = " OR "), 
-                         ")", sep = "")  #use for getQuery for accession codes
+    #use for getQuery for accession codes
+    not_null_str = sprintf(" AND ( %s )", paste(not_null, collapse = " OR "))
   }
   if (acc_only) 
-    select_fields = rev(select_fields[grep("_accession", 
-                                           select_fields)])
+    select_fields = rev(select_fields[grep("_accession", select_fields)])
   select_fields_str <- paste(select_fields, collapse = ",")
-  sql <- paste("SELECT DISTINCT ", select_fields_str, " FROM sra_ft WHERE sra_ft MATCH '", 
-               search_terms, "' ", not_null_str, ";", sep = "")
+  sql <- sprintf(
+    "SELECT DISTINCT %s FROM sra_ft WHERE sra_ft MATCH '%s' %s;",
+    select_fields_str, search_terms, not_null_str
+  )
   rs <- dbGetQuery(sra_con, sql)
   names(rs) <- sub("_accession", "", names(rs))
   return(rs)
@@ -510,14 +549,5 @@ sraGraph_1 <- function( acc_table)
 
 disableActionButton <- function(id,session) {
   session$sendCustomMessage(type="jsCode",
-                            list(code= paste("$('#",id,"').prop('disabled',true)"
-                                             ,sep="")))
+                            list(code=sprintf("$('#%s').prop('disabled',true)", id)))
 }
-############################################################################################
-
-
-
-
-    
-
-
