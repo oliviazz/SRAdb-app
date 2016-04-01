@@ -3,4 +3,6 @@
 www/
 
 *.sqlite
+*.swf
+
 inst/app/sra_counts.txt
