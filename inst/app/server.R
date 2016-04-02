@@ -17,6 +17,97 @@ sra_dbname <- 'SRAmetadb.sqlite'
 if(!file.exists(sra_dbname))
   sqlfile <<- getSRAdbFile()
 sra_con <- dbConnect(dbDriver("SQLite"), sra_dbname)
+
+
+# Set the type of each field. This is important for DataTable filters.
+# Character types use text search, numeric types have sliding bars, and factor
+# types have drop down menus.
+
+setFieldTypes <- function(d){
+  fieldTypes <- c(
+    'SRR_bamFile'                   = as.character,
+    'SRX_bamFile'                   = as.character,
+    'SRX_fastqFTP'                  = as.character,
+    'run_ID'                        = as.character,
+    'run_alias'                     = as.character,
+    'run_accession'                 = as.character,
+    'run_date'                      = as.character,
+    'updated_date'                  = as.character,
+    'spots'                         = as.numeric,
+    'bases'                         = as.numeric,
+    'run_center'                    = as.character,
+    'experiment_name'               = as.character,
+    'run_url_link'                  = as.character,
+    'run_entrez_link'               = as.character,
+    'run_attribute'                 = as.character,
+    'experiment_ID'                 = as.character,
+    'experiment_alias'              = as.character,
+    'experiment_accession'          = as.character,
+    'experiment_title'              = as.character,
+    'study_name'                    = as.character,
+    'sample_name'                   = as.character,
+    'design_description'            = as.character,
+    'library_name'                  = as.character,
+    'library_strategy'              = as.factor,
+    'library_source'                = as.factor,
+    'library_selection'             = as.factor,
+    'library_layout'                = as.character,
+    'library_construction_protocol' = as.character,
+    'adapter_spec'                  = as.character,
+    'read_spec'                     = as.character,
+    'platform'                      = as.factor,
+    'instrument_model'              = as.factor,
+    'instrument_name'               = as.character,
+    'platform_parameters'           = as.character,
+    'sequence_space'                = as.character,
+    'base_caller'                   = as.character,
+    'quality_scorer'                = as.character,
+    'number_of_levels'              = as.character,
+    'multiplier'                    = as.character,
+    'qtype'                         = as.character,
+    'experiment_url_link'           = as.character,
+    'experiment_entrez_link'        = as.character,
+    'experiment_attribute'          = as.character,
+    'sample_ID'                     = as.character,
+    'sample_alias'                  = as.character,
+    'sample_accession'              = as.character,
+    'taxon_id'                      = as.character,
+    'common_name'                   = as.character,
+    'anonymized_name'               = as.character,
+    'individual_name'               = as.character,
+    'description'                   = as.character,
+    'sample_url_link'               = as.character,
+    'sample_entrez_link'            = as.character,
+    'sample_attribute'              = as.character,
+    'study_ID'                      = as.character,
+    'study_alias'                   = as.character,
+    'study_accession'               = as.character,
+    'study_title'                   = as.character,
+    'study_type'                    = as.factor,
+    'study_abstract'                = as.character,
+    'center_project_name'           = as.character,
+    'study_description'             = as.character,
+    'study_url_link'                = as.character,
+    'study_entrez_link'             = as.character,
+    'study_attribute'               = as.character,
+    'related_studies'               = as.character,
+    'primary_study'                 = as.character,
+    'submission_ID'                 = as.character,
+    'submission_accession'          = as.character,
+    'submission_comment'            = as.character,
+    'submission_center'             = as.character,
+    'submission_lab'                = as.character,
+    'submission_date'               = as.character,
+    'sradb_updated'                 = as.character
+  )
+  for(s in names(d)){
+    if(s %in% names(fieldTypes)){
+      d[[s]] <- fieldTypes[[s]](d[[s]])
+    }
+  }
+  d
+}
+
 #source('fastqdump_v1.R')
 #============================================================================#
 
@@ -34,11 +125,12 @@ shinyServer(function(input,output,session){
       searchTerms=gsub('“','"',searchTerms)
       if(dataType == "acc_table"){
         searchResults <- getSRA_1(
-          search_terms = searchTerms, sra_con = sra_con,
+          search_terms = searchTerms,
+          sra_con = sra_con,
           out_types = c("study","experiment","sample","run", "submission"),
           acc_only = TRUE
         )
-        searchResults <- searchResults[,c("study","experiment","sample","run", "submission")]
+        searchResults <- searchResults[, c("study","experiment","sample","run", "submission")]
       }
       else{
         searchResults <- getSRA_1(
@@ -58,7 +150,7 @@ shinyServer(function(input,output,session){
     isolate({
       searchTerms = input$searchTerms
       if(searchTerms != ''){
-        table  <- getFullTable() 
+        setFieldTypes(getFullTable()) 
       }
     })
   },
@@ -68,7 +160,7 @@ shinyServer(function(input,output,session){
   extensions = c('ColVis','ColReorder', 'TableTools'),
   options = list(
     dom = 'CTRf<"clear">lirSpt',
-    scrollX = TRUE,
+    # scrollX = TRUE,
     scrollCollapse = TRUE,
     autoWidth = TRUE,
     orderClasses = TRUE,
@@ -76,6 +168,7 @@ shinyServer(function(input,output,session){
     lengthMenu = c(20,50, 100, 200),
     pageLength = 50,
     searchHighlight = TRUE,
+    searching = TRUE,
     server = FALSE,
     stateSave = TRUE,
     tableTools = list("sSwfPath" = copySWF("www"),
@@ -402,7 +495,7 @@ shinyServer(function(input,output,session){
       a <- gsub(" ","",a) 
     },
     content = function(file){
-      n<- getFullTable()
+      n <- getFullTable()
       selected_acc  = input$mainTable_rows_selected 
       n <- n[selected_acc,]
       write.csv(n,file)
