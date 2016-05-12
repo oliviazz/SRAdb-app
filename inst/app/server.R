@@ -14,10 +14,100 @@ if( ! file.exists("www") ) {
 }
 
 sra_dbname <- 'SRAmetadb.sqlite'	
-if(!file.exists('SRAmetadb.sqlite'))
+if(!file.exists(sra_dbname))
   sqlfile <<- getSRAdbFile()
-sra_con<- dbConnect(dbDriver("SQLite"), 
-                    sra_dbname)
+sra_con <- dbConnect(dbDriver("SQLite"), sra_dbname)
+
+
+# Set the type of each field. This is important for DataTable filters.
+# Character types use text search, numeric types have sliding bars, and factor
+# types have drop down menus.
+
+setFieldTypes <- function(d){
+  fieldTypes <- c(
+    'SRR_bamFile'                   = as.character,
+    'SRX_bamFile'                   = as.character,
+    'SRX_fastqFTP'                  = as.character,
+    'run_ID'                        = as.character,
+    'run_alias'                     = as.character,
+    'run_accession'                 = as.character,
+    'run_date'                      = as.character,
+    'updated_date'                  = as.character,
+    'spots'                         = as.numeric,
+    'bases'                         = as.numeric,
+    'run_center'                    = as.character,
+    'experiment_name'               = as.character,
+    'run_url_link'                  = as.character,
+    'run_entrez_link'               = as.character,
+    'run_attribute'                 = as.character,
+    'experiment_ID'                 = as.character,
+    'experiment_alias'              = as.character,
+    'experiment_accession'          = as.character,
+    'experiment_title'              = as.character,
+    'study_name'                    = as.character,
+    'sample_name'                   = as.character,
+    'design_description'            = as.character,
+    'library_name'                  = as.character,
+    'library_strategy'              = as.factor,
+    'library_source'                = as.factor,
+    'library_selection'             = as.factor,
+    'library_layout'                = as.character,
+    'library_construction_protocol' = as.character,
+    'adapter_spec'                  = as.character,
+    'read_spec'                     = as.character,
+    'platform'                      = as.factor,
+    'instrument_model'              = as.factor,
+    'instrument_name'               = as.character,
+    'platform_parameters'           = as.character,
+    'sequence_space'                = as.character,
+    'base_caller'                   = as.character,
+    'quality_scorer'                = as.character,
+    'number_of_levels'              = as.character,
+    'multiplier'                    = as.character,
+    'qtype'                         = as.character,
+    'experiment_url_link'           = as.character,
+    'experiment_entrez_link'        = as.character,
+    'experiment_attribute'          = as.character,
+    'sample_ID'                     = as.character,
+    'sample_alias'                  = as.character,
+    'sample_accession'              = as.character,
+    'taxon_id'                      = as.character,
+    'common_name'                   = as.character,
+    'anonymized_name'               = as.character,
+    'individual_name'               = as.character,
+    'description'                   = as.character,
+    'sample_url_link'               = as.character,
+    'sample_entrez_link'            = as.character,
+    'sample_attribute'              = as.character,
+    'study_ID'                      = as.character,
+    'study_alias'                   = as.character,
+    'study_accession'               = as.character,
+    'study_title'                   = as.character,
+    'study_type'                    = as.factor,
+    'study_abstract'                = as.character,
+    'center_project_name'           = as.character,
+    'study_description'             = as.character,
+    'study_url_link'                = as.character,
+    'study_entrez_link'             = as.character,
+    'study_attribute'               = as.character,
+    'related_studies'               = as.character,
+    'primary_study'                 = as.character,
+    'submission_ID'                 = as.character,
+    'submission_accession'          = as.character,
+    'submission_comment'            = as.character,
+    'submission_center'             = as.character,
+    'submission_lab'                = as.character,
+    'submission_date'               = as.character,
+    'sradb_updated'                 = as.character
+  )
+  for(s in names(d)){
+    if(s %in% names(fieldTypes)){
+      d[[s]] <- fieldTypes[[s]](d[[s]])
+    }
+  }
+  d
+}
+
 #source('fastqdump_v1.R')
 #============================================================================#
 
@@ -29,55 +119,68 @@ shinyServer(function(input,output,session){
     progress$set(message = 'Loading Search Results . . . ', value = 5)
     on.exit(progress$close())
     input$searchButton
-    
     isolate({
       dataType <- input$dataType
       searchTerms <- input$searchTerms
       searchTerms=gsub('“','"',searchTerms)
       if(dataType == "acc_table"){
-        searchResults <- getSRA_1(search_terms = searchTerms, sra_con = sra_con,
-                     out_types = c("study","experiment","sample","run", "submission"), acc_only = TRUE)
-        searchResults <- searchResults[,c("study","experiment","sample","run", "submission")]
+        searchResults <- getSRA_1(
+          search_terms = searchTerms,
+          sra_con = sra_con,
+          out_types = c("study","experiment","sample","run", "submission"),
+          acc_only = TRUE
+        )
+        searchResults <- searchResults[, c("study","experiment","sample","run", "submission")]
       }
       else{
-      searchResults <- getSRA_1(search_terms = searchTerms,
-                                sra_con = sra_con,out_types = dataType)
-    
-        }
-      })
- })
+        searchResults <- getSRA_1(
+          search_terms = searchTerms,
+          sra_con = sra_con,
+          out_types = dataType
+        )
+      }
+    })
+  })
   
 ## Results Table with Options--------------------------------------
-  output$mainTable <- DT::renderDataTable({
+  output$mainTable <- DT::renderDataTable(
+  {
     input$reload
     input$searchButton
     isolate({
       searchTerms = input$searchTerms
       if(searchTerms != ''){
-        table  <- getFullTable() 
+        setFieldTypes(getFullTable()) 
       }
     })
-  }, rownames = TRUE,
+  },
+  rownames = TRUE,
   escape = FALSE,
-  class = 'order-column nowrap',
+  #class = 'order-column nowrap',
   extensions = c('ColVis','ColReorder', 'TableTools'),
-  options = list(dom = 'CTRf<"clear">lirSpt',
-                 scrollX = TRUE, scrollCollapse = TRUE,
-                 autoWidth = TRUE,orderClasses = TRUE,
-                 colReorder = list(realtime = TRUE),
-                 lengthMenu = c(20,50, 100, 200),pageLength = 50,
-                 searchHighlight = TRUE,
-                 server = FALSE,stateSave = TRUE,
-                 tableTools = list("sSwfPath" = copySWF("www"), pdf = TRUE,
-                                   aButtons = list('print')),
-                 initComplete = JS(
-                   "function(settings, json) {",
-                   "$(this.api().table().header()).css
-                   ({'background-color': '#6AB4FF', 'color': '#fff'});",
-                   "}"
-                 )
-                
-                 )                 
+  options = list(
+    dom = 'CTRf<"clear">lirSpt',
+    # scrollX = TRUE,
+    scrollCollapse = TRUE,
+    autoWidth = TRUE,
+    orderClasses = TRUE,
+    colReorder = list(realtime = TRUE),
+    lengthMenu = c(20,50, 100, 200),
+    pageLength = 50,
+    searchHighlight = TRUE,
+    searching = TRUE,
+    server = FALSE,
+    stateSave = TRUE,
+    tableTools = list("sSwfPath" = copySWF("www"),
+                      pdf = TRUE,
+                      aButtons = list('print')),
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css
+      ({'background-color': '#6AB4FF', 'color': '#fff'});",
+      "}")
+    ),    
+    filter = 'top'
   )
   
 ## Intrument Model Table on Front Page---------------------------------
@@ -195,8 +298,8 @@ shinyServer(function(input,output,session){
                                 dumpcs = is.element("dumpcs", options),
                                 fastqDumpCMD = fastqDumpCMD
                       ))
-                    message <- paste(gsub('"', "",message[1]), ' in ', outdir, sep="",collapse="")
-                    start = gregexpr(pattern ='Written', message)
+                    message <- sprintf("%s in %s", gsub('"', "", message[1]), outdir)
+                    start = gregexpr(pattern='Written', message)
                     message = substring(message, start, nchar(message))
                     createAlert(session, "fqdalert",title = NULL,
                                 content = HTML(paste("<font size='3'><b>FASTQ Dump Completed:</b></font>",message)), style = "success", append = F)
@@ -323,38 +426,61 @@ shinyServer(function(input,output,session){
       closeAlert(session, "noSearch")}
     )
   
-  createAlert(session, "TBalert", alertId = "noSearch", title = "No results to display",
-              content = "Please enter search terms to display results", append = F)
-  createAlert(session, "alert", alertId = "noAction", title = "No results to display",
-              content = "Please select rows and select operation to display results", append = F)
+  createAlert(
+    session, "TBalert",
+    alertId = "noSearch",
+    title = "No results to display",
+    content = "Please enter search terms to display results",
+    append = FALSE)
+  createAlert(
+    session, "alert",
+    alertId = "noAction",
+    title = "No results to display",
+    content = "Please select rows and select operation to display results",
+    append = FALSE
+  )
   
-  observeEvent( input$actionButton, {
-    if((input$operationType != '' && length(input$mainTable_rows_selected ) > 0)){
-      closeAlert(session, alertId = "TBnoAction")
-      closeAlert(session, alertId = "noAction")
+  observeEvent(
+    input$actionButton,
+    {
+      if((input$operationType != '' && length(input$mainTable_rows_selected ) > 0)){
+        closeAlert(session, alertId = "TBnoAction")
+        closeAlert(session, alertId = "noAction")
+      }
+      else
+        createAlert(
+          session, "TBalert",
+          alertId = "TBnoAction",
+          title = "No results to display",
+          content = "Please select rows and select operation to perform operation",
+          append = FALSE,
+          style = "danger")
     }
-    else
-      createAlert(session, "TBalert", alertId = "TBnoAction", title = "No results to display",
-                  content = "Please select rows and select operation to perform operation", append = F,
-                  style = "danger")
-  })
+  )
 
-  observeEvent(input$operationType == "eGraph",{
-    if(input$operationType == "eGraph"){
-    createAlert(session, alertId = "eGraphWarning", anchorId = "TBalert", title = "Warning:", content = 
-                  "Entity Graph creation for large data sets,including those of type STUDY or SUBMISSION, will take a 
-                long time and is not recommended.", style = "warning")
+  observeEvent(
+    input$operationType == "eGraph",
+    {
+      if(input$operationType == "eGraph"){
+      createAlert(
+        session,
+        alertId = "eGraphWarning",
+        anchorId = "TBalert",
+        title = "Warning:",
+        content = "Entity Graph creation for large data sets, including those of type STUDY or SUBMISSION, will take a long time and is not recommended.",
+        style = "warning")
+      }
+      else{
+        closeAlert(session, alertId = "eGraphWarning")
+      }
     }
-    else{
-      closeAlert(session, alertId = "eGraphWarning")
-    }
-  })
+  )
 
 ##Download handler ---------------------------------------- 
   #-Download full table
   output$downloadFullSRA<- downloadHandler(
     filename  = function() { 
-      a <- paste0(Sys.Date(),'-',input$searchTerms,'FullResults.csv')
+      a <- sprintf("%s-%sFullResults.csv", Sys.Date(), input$searchTerms)
       a <- gsub(" ","",a) 
       },
     content = function(file){
@@ -365,11 +491,11 @@ shinyServer(function(input,output,session){
  #-Download selected rows 
   output$downloadSelected <- downloadHandler(
     filename  = function() { 
-      a <- paste0(Sys.Date(),'-',input$searchTerms,'Results.csv')
+      a <- sprintf("%s-%sResults.csv", Sys.Date(), input$searchTerms)
       a <- gsub(" ","",a) 
     },
     content = function(file){
-      n<- getFullTable()
+      n <- getFullTable()
       selected_acc  = input$mainTable_rows_selected 
       n <- n[selected_acc,]
       write.csv(n,file)
@@ -408,17 +534,28 @@ observeEvent(input$viewFiles, {
 })  
 
 ##Help-Text Popovers-----------------------------------------------------------------------------  
- addPopover(session, "selectHelp", title = NULL,content = paste0("Click on a row
-          to select it, then choose an operation for it and press 'Submit'."), trigger = 'click')
+addPopover(
+  session,
+  "selectHelp",
+  title = NULL,
+  content = "Click on a row to select it, then choose an operation for it and press 'Submit'.",
+  trigger = 'click'
+)
 
- addPopover(session, "smartSearch", title = NULL,
-           content = HTML(paste('<b>Smart Search Options: </b><ul>
-                                <li><em>OR</em> to combine searches</li>
-                                <li><em>column</em>:<em>value</em> for all reslts with given column value</li> 
-                                <li><em>"Search Terms"</em> for full phrase search</li>
-                                <li><em> term* </em> for all results that begin with term</li>
-                                </ul>')),
-           trigger = 'click')  
+addPopover(
+  session,
+  "smartSearch",
+  title=NULL,
+  content=HTML(
+    '<b>Smart Search Options: </b><ul>
+    <li><em>OR</em> to combine searches</li>
+    <li><em>column</em>:<em>value</em> for all reslts with given column value</li> 
+    <li><em>"Search Terms"</em> for full phrase search</li>
+    <li><em> term* </em> for all results that begin with term</li>
+    </ul>'
+  ),
+  trigger='click'
+)
  
 })
 
@@ -444,25 +581,36 @@ createLink <- function(val, linkdisplay) {
 }
 
 # Modified getSRA------------------------------------------------
-getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study", 
-                                      "experiment", "sample", "run", "srabrief"), sra_con, acc_only = FALSE) 
+getSRA_1 <- function (
+  search_terms,
+  out_types = c("sra", "submission", "study", "experiment", "sample", "run", "srabrief"),
+  sra_con,
+  acc_only = FALSE
+) 
 {
   out_types <- match.arg(out_types, several.ok = T)
   sra_fields <- dbGetQuery(sra_con, "PRAGMA table_info(sra)")$name
   
   #defining correct indices 
-  sra_fields_indice <- list( srabrief = c(9,7,11,22,47,20,19,70,72,58,59), #sample title include 
-                    run = seq(which(sra_fields == "run_ID") + 1,
-                              which(sra_fields == "experiment_ID") - 1),
-                    experiment = seq(which(sra_fields == "experiment_ID") + 1, 
-                              which(sra_fields == "sample_ID") - 1), 
-                    sample = seq(which(sra_fields == "sample_ID") + 1, 
-                                 which(sra_fields == "study_ID") - 1), 
-                    study = seq(which(sra_fields == "study_ID") + 1,
-                                which(sra_fields == "submission_ID") - 1), 
-                    submission = seq(which(sra_fields == "submission_ID") +1,
-                                length(sra_fields)),
-                    sra = c(6:75))
+  sra_fields_indice <- list(
+    srabrief = c(9,7,11,22,47,20,19,70,72,58,59), #sample title include 
+    run = seq(
+      which(sra_fields == "run_ID") + 1,
+      which(sra_fields == "experiment_ID") - 1),
+    experiment = seq(
+      which(sra_fields == "experiment_ID") + 1,
+      which(sra_fields == "sample_ID") - 1),
+    sample = seq(
+      which(sra_fields == "sample_ID") + 1,
+      which(sra_fields == "study_ID") - 1),
+    study = seq(
+      which(sra_fields == "study_ID") + 1,
+      which(sra_fields == "submission_ID") - 1), 
+    submission = seq(
+      which(sra_fields == "submission_ID") + 1,
+      length(sra_fields)),
+    sra = c(6:75)
+  )
   
   if (is.element("sra", out_types)) {
     sra_fields_indice_1 <- sra_fields_indice[["sra"]]
@@ -476,21 +624,20 @@ getSRA_1 <- function (search_terms, out_types = c("sra", "submission", "study",
       sra_fields_indice_1 <- sra_fields_indice[[type]]
       select_fields = c(select_fields, sra_fields[sra_fields_indice_1]) #add on each type
       if(type != 'srabrief')
-           not_null = c(not_null, paste(type, "_accession IS NOT NULL ", 
-                                   sep = ""))
+           not_null = c(not_null, sprintf("%s_accession IS NOT NULL ", type))
       else
-        not_null = c(not_null, paste('experiment', "_accession IS NOT NULL ", 
-                                    sep = ""))
+        not_null = c(not_null, 'experiment_accession IS NOT NULL ')
     }
-    not_null_str = paste(" AND (", paste(not_null, collapse = " OR "), 
-                         ")", sep = "")  #use for getQuery for accession codes
+    #use for getQuery for accession codes
+    not_null_str = sprintf(" AND ( %s )", paste(not_null, collapse = " OR "))
   }
   if (acc_only) 
-    select_fields = rev(select_fields[grep("_accession", 
-                                           select_fields)])
+    select_fields = rev(select_fields[grep("_accession", select_fields)])
   select_fields_str <- paste(select_fields, collapse = ",")
-  sql <- paste("SELECT DISTINCT ", select_fields_str, " FROM sra_ft WHERE sra_ft MATCH '", 
-               search_terms, "' ", not_null_str, ";", sep = "")
+  sql <- sprintf(
+    "SELECT DISTINCT %s FROM sra_ft WHERE sra_ft MATCH '%s' %s;",
+    select_fields_str, search_terms, not_null_str
+  )
   rs <- dbGetQuery(sra_con, sql)
   names(rs) <- sub("_accession", "", names(rs))
   return(rs)
@@ -504,14 +651,5 @@ sraGraph_1 <- function( acc_table)
 
 disableActionButton <- function(id,session) {
   session$sendCustomMessage(type="jsCode",
-                            list(code= paste("$('#",id,"').prop('disabled',true)"
-                                             ,sep="")))
+                            list(code=sprintf("$('#%s').prop('disabled',true)", id)))
 }
-############################################################################################
-
-
-
-
-    
-
-
