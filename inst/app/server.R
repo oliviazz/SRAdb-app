@@ -157,30 +157,27 @@ shinyServer(function(input,output,session){
   rownames = TRUE,
   escape = FALSE,
   #class = 'order-column nowrap',
-  extensions = c('ColVis','ColReorder', 'TableTools'),
+  extensions = c('Buttons','ColReorder'),
   options = list(
-    dom = 'CTRf<"clear">lirSpt',
-    # scrollX = TRUE,
-    scrollCollapse = TRUE,
-    autoWidth = TRUE,
-    orderClasses = TRUE,
-    colReorder = list(realtime = TRUE),
-    lengthMenu = c(20,50, 100, 200),
-    pageLength = 50,
+    dom             = 'Bfrtip',
+    buttons         = c('colvis', 'copy', 'csv', 'excel', 'pdf', 'print'),
+    scrollCollapse  = TRUE,
+    autoWidth       = TRUE,
+    orderClasses    = TRUE,
+    colReorder      = list(realtime = TRUE),
+    lengthMenu      = c(20, 50, 100, 200),
+    pageLength      = 50,
     searchHighlight = TRUE,
-    searching = TRUE,
-    server = FALSE,
-    stateSave = TRUE,
-    tableTools = list("sSwfPath" = copySWF("www"),
-                      pdf = TRUE,
-                      aButtons = list('print')),
-    initComplete = JS(
+    searching       = TRUE,
+    filter          = 'top',
+    server          = FALSE,
+    stateSave       = TRUE,
+    initComplete    = JS(
       "function(settings, json) {",
       "$(this.api().table().header()).css
       ({'background-color': '#6AB4FF', 'color': '#fff'});",
       "}")
-    ),    
-    filter = 'top'
+    )    
   )
   
 ## Intrument Model Table on Front Page---------------------------------
@@ -372,15 +369,20 @@ shinyServer(function(input,output,session){
       })
   },
   escape = FALSE,class = 'nowrap order-column',
-  extensions = c('ColVis','ColReorder', 'TableTools'),
-  options = list(dom = 'RC<"clear">lfrtip', scrollX = TRUE,
-                 scrollCollapse = TRUE,
-                 colReorder = list(realtime = TRUE),
-                 saveState = TRUE,autoWidth = TRUE,
-                 orderClasses = TRUE,lengthMenu = c(15, 50, 100),
-                 pageLength = 15,searchHighlight = TRUE,
-                 tableTools = list(sSwfPath = copySWF())
-            )      
+  extensions = c('Buttons','ColReorder'),
+  options = list(
+      dom             = 'Bfrtip',
+      buttons         = c('colvis', 'copy', 'csv', 'excel', 'pdf', 'print'),
+      scrollX         = TRUE,
+      scrollCollapse  = TRUE,
+      colReorder      = list(realtime = TRUE),
+      saveState       = TRUE,
+      autoWidth       = TRUE,
+      orderClasses    = TRUE,
+      lengthMenu      = c(15, 50, 100),
+      pageLength      = 15,
+      searchHighlight = TRUE
+    )      
   )
   
 ## Plot of ERD-----------------------------------
